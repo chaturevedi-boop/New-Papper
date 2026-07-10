@@ -1,0 +1,6 @@
+{
+  "name": "Newspaper Delivery & Billing Manager",
+  "description": "Premium local-data Newspaper Delivery & Billing suite with a 4-tier location hierarchy, billing engine, PDF bill generator, WhatsApp share integrations, and full Android Jetpack Compose Kotlin schemas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
