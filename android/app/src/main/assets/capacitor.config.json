@@ -1,0 +1,8 @@
+{
+	"appId": "com.dailynewsservice.app",
+	"appName": "Daily News Service",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	}
+}
