@@ -29,10 +29,6 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Accept Android SDK Licenses
-        run: |
-          yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
       - name: Install Web Dependencies
         run: npm install
 
@@ -41,6 +37,9 @@ jobs:
 
       - name: Sync Android Platform (Capacitor)
         run: npx cap sync
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Build Android Debug APK
         working-directory: android
