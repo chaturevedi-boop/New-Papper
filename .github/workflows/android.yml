@@ -29,8 +29,9 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Install Web Dependencies
         run: npm install
