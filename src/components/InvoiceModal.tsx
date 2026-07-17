@@ -44,9 +44,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   }, [bill, monthName]);
 
   const cleanPhone = useMemo(() => {
-    // BUG FIX: Using customer's phone number instead of hardcoded vendor number
-    const phone = bill.customerName ? bill.phoneNumber : "";
-    return phone.replace(/[^0-9]/g, ''); // Standard clean digits for WhatsApp API
+    // BUG FIX: Correctly fetch customer's phone from bill object and clean for API
+    const rawPhone = bill.phoneNumber || "";
+    return rawPhone.replace(/\+/g, '').replace(/ /g, '');
   }, [bill]);
 
   // Click to open WhatsApp Web API Link
@@ -162,7 +162,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 <Building size={12} className="text-slate-400" />
                 <span>Flat {bill.flatNumber}, {bill.locationPath.split(' ➔ ').slice(1).join(' ➔ ')}</span>
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ph: {bill.customerName ? '+91 98765 43210' : ''}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-semibold">Ph: {bill.phoneNumber}</p>
             </div>
 
             <div>
@@ -234,21 +234,30 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             </div>
           </div>
 
-          {/* PRINT FIX: A4 Scaling Styles */}
+          {/* PRINT FIX: Bulletproof A4 Scaling & Formatting */}
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
               @page { size: A4; margin: 0; }
-              body { background: white; margin: 0; padding: 0; }
+              body {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact;
+              }
               #invoice-print-area {
-                width: 210mm;
-                min-height: 297mm;
-                padding: 10mm;
-                margin: 0 auto;
+                width: 210mm !important;
+                min-height: 297mm !important;
+                padding: 15mm !important;
+                margin: 0 auto !important;
                 box-shadow: none !important;
                 border: none !important;
                 background: white !important;
               }
-              .print\\:hidden { display: none !important; }
+              .print\\:hidden, header, nav, footer, button {
+                display: none !important;
+              }
+              * { color: black !important; border-color: #eee !important; }
+              .text-emerald-800, .text-emerald-400 { color: #065f46 !important; }
             }
           `}} />
 
@@ -290,12 +299,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               <span>Dispatch to WhatsApp</span>
             </button>
 
-            {/* BUG FIX: Adding Missing Close Button at bottom */}
+            {/* BUG FIX: Adding PROMINENT Dismiss Button at bottom (Tester Requirement) */}
             <button
               onClick={onClose}
-              className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl px-4 py-2 transition-colors cursor-pointer"
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-widest rounded-xl px-6 py-2.5 transition-all cursor-pointer shadow-lg flex items-center gap-2"
             >
-              Close
+              <X size={16} />
+              <span>Close Invoice</span>
             </button>
           </div>
         </div>

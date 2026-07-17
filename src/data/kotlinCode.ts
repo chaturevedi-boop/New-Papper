@@ -517,6 +517,21 @@ class NewspaperRepository(private val dao: NewspaperDao) {
         dao.updateFlatActiveYear(flatId, year)
     }
 
+    // BUG FIX: Background Thread PDF Generation
+    suspend fun generateInvoicePdf(context: Context, bill: BillingSummary, items: List<BillingBreakdownItem>) = withContext(Dispatchers.IO) {
+        val service = PdfGenerationService(context)
+        service.createInvoicePdf(
+            bill.customerName,
+            bill.locationPath,
+            "\${bill.month}/\${bill.year}",
+            items,
+            bill.grossAmount,
+            bill.skipDeductions,
+            bill.netAmount,
+            bill.paid
+        )
+    }
+
     suspend fun fetchMonthlySummary(flatId: String, prefix: String) = withContext(Dispatchers.IO) {
         dao.getDeliveryLogsForMonth(flatId, prefix)
     }
@@ -596,6 +611,21 @@ class NewspaperViewModel(private val repository: NewspaperRepository) : ViewMode
             }
         }
     }
+
+    // BUG FIX: Background PDF Generation & Sharing Trigger
+    fun generateAndShareInvoice(context: Context, bill: BillingSummary, items: List<BillingBreakdownItem>) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val file = repository.generateInvoicePdf(context, bill, items)
+            _uiState.update { it.copy(isLoading = false) }
+
+            file?.let {
+                WhatsAppShareHelper.shareInvoicePdfToWhatsApp(context, it, bill.phoneNumber)
+            } ?: run {
+                _uiState.update { it.copy(error = "PDF Generation Failed") }
+            }
+        }
+    }
 }`
   },
   {
@@ -644,6 +674,7 @@ fun BillDetailScreen(
     skipDeductions: Double,
     netBillAmount: Double,
     isPaid: Boolean,
+    onBack: () -> Unit, // BUG FIX: Implement back navigation
     onGeneratePDF: () -> Unit,
     onShareInvoice: (Boolean) -> Unit // true -> PDF, false -> Text summary
 ) {
@@ -652,7 +683,7 @@ fun BillDetailScreen(
             TopAppBar(
                 title = { Text("Invoice Details", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
-                    IconButton(onClick = { /* Back Action */ }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -952,8 +983,11 @@ class PdfGenerationService(private val context: Context) {
         // Finish Page
         pdfDocument.finishPage(page)
         
-        // BUG FIX: Use Scoped Storage and consistent background file creation
-        val pdfFile = File(context.getExternalFilesDir(null), "invoice_\${customerName.replace(" ", "_")}.pdf")
+        // BUG FIX: Use Internal Cache Directory for better FileProvider compatibility & Scoped Storage
+        val invoiceDir = File(context.cacheDir, "invoices")
+        if (!invoiceDir.exists()) invoiceDir.mkdirs()
+
+        val pdfFile = File(invoiceDir, "invoice_\${customerName.replace(" ", "_")}.pdf")
         return try {
             if (pdfFile.exists()) pdfFile.delete()
             val fileOutputStream = FileOutputStream(pdfFile)
@@ -994,12 +1028,12 @@ object PrintHelper {
         val webView = WebView(context)
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String) {
-                // Create print adapter from webview
+                // BUG FIX: Use specific A4 job settings and scaling
                 val printAdapter = webView.createPrintDocumentAdapter(jobName)
 
-                // BUG FIX: Force Standard A4 Attributes
                 val attributes = PrintAttributes.Builder()
                     .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                    .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
                     .setResolution(PrintAttributes.Resolution("id", "A4", 300, 300))
                     .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
                     .build()

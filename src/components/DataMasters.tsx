@@ -10,7 +10,9 @@ import {
   Newspaper, 
   Users, 
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
 
 interface DataMastersProps {
@@ -18,7 +20,7 @@ interface DataMastersProps {
   onAddArea: (area: Area) => void;
   onAddBuilding: (building: Building) => void;
   onAddWing: (wing: Wing) => void;
-  onAddFlat: (flat: Flat, papers: string[]) => void;
+  onAddFlat: (flat: Flat, paperConfigs: { paperId: string, fromDate?: string, toDate?: string }[]) => void;
   onAddPaper: (paper: Paper) => void;
   onAddAgent: (agent: DeliveryAgent) => void;
   onDeleteRecord: (category: 'area' | 'building' | 'wing' | 'flat' | 'paper' | 'agent', id: string) => void;
@@ -53,10 +55,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
   const [flatCustomerName, setFlatCustomerName] = useState('');
   const [flatPhone, setFlatPhone] = useState('');
   const [flatWingId, setFlatWingId] = useState('');
-  const [flatSelectedPapers, setFlatSelectedPapers] = useState<string[]>([]);
+  const [flatPaperConfigs, setFlatPaperConfigs] = useState<{ paperId: string, fromDate?: string, toDate?: string }[]>([]);
 
   // Dynamic Registration State
   const [ledgerType, setLedgerType] = useState<'SUBSCRIPTION' | 'BILLING'>('SUBSCRIPTION');
+  const [configuringPaperId, setConfiguringPaperId] = useState<string | null>(null);
   const [showDatePopup, setShowDatePopup] = useState(false);
   const [billingFromDate, setBillingFromDate] = useState('');
   const [billingToDate, setBillingToDate] = useState('');
@@ -130,13 +133,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
 
   const handleAddFlatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!flatNumber.trim() || !flatCustomerName.trim() || !flatPhone.trim() || !flatWingId || flatSelectedPapers.length === 0 || isAdding) return;
-
-    // Trigger Popup if "Billing" is selected and dates are not yet provided
-    if (ledgerType === 'BILLING' && (!billingFromDate || !billingToDate)) {
-      setShowDatePopup(true);
-      return;
-    }
+    if (!flatNumber.trim() || !flatCustomerName.trim() || !flatPhone.trim() || !flatWingId || flatPaperConfigs.length === 0 || isAdding) return;
 
     setIsAdding(true);
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -148,18 +145,15 @@ export const DataMasters: React.FC<DataMastersProps> = ({
       customerName: flatCustomerName.trim(),
       phoneNumber: flatPhone.trim(),
       activeYear: 2026,
-      // Metadata added for dynamic type feature
-      ledgerType: ledgerType,
-      fromDate: billingFromDate || undefined,
-      toDate: billingToDate || undefined
+      ledgerType: ledgerType
     };
-    onAddFlat(newFlat, flatSelectedPapers);
+    onAddFlat(newFlat, flatPaperConfigs);
 
     // Reset all form states
     setFlatNumber('');
     setFlatCustomerName('');
     setFlatPhone('');
-    setFlatSelectedPapers([]);
+    setFlatPaperConfigs([]);
     setLedgerType('SUBSCRIPTION');
     setBillingFromDate('');
     setBillingToDate('');
@@ -169,11 +163,34 @@ export const DataMasters: React.FC<DataMastersProps> = ({
 
   const handleConfirmBillingDates = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!billingFromDate || !billingToDate) return;
+    if (!configuringPaperId) return;
+
+    // Add or update the paper config with dates
+    setFlatPaperConfigs(prev => {
+      const existingIdx = prev.findIndex(c => c.paperId === configuringPaperId);
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = { paperId: configuringPaperId, fromDate: billingFromDate, toDate: billingToDate };
+        return next;
+      }
+      return [...prev, { paperId: configuringPaperId, fromDate: billingFromDate, toDate: billingToDate }];
+    });
+
     setShowDatePopup(false);
-    // Proceed with registration now that dates are captured
-    const dummyEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleAddFlatSubmit(dummyEvent);
+    setConfiguringPaperId(null);
+    setBillingFromDate('');
+    setBillingToDate('');
+  };
+
+  const handleCancelDatePopup = () => {
+    setShowDatePopup(false);
+    // If it was a new paper being added, remove it if no dates were set
+    if (configuringPaperId) {
+      setFlatPaperConfigs(prev => prev.filter(c => c.paperId !== configuringPaperId || (c.fromDate && c.toDate)));
+    }
+    setConfiguringPaperId(null);
+    setBillingFromDate('');
+    setBillingToDate('');
   };
 
   const handleAddPaperSubmit = async (e: React.FormEvent) => {
@@ -217,10 +234,15 @@ export const DataMasters: React.FC<DataMastersProps> = ({
   };
 
   const handlePaperCheckbox = (paperId: string) => {
-    if (flatSelectedPapers.includes(paperId)) {
-      setFlatSelectedPapers(flatSelectedPapers.filter(id => id !== paperId));
+    const isConfigured = flatPaperConfigs.some(c => c.paperId === paperId);
+
+    if (isConfigured) {
+      // Remove it
+      setFlatPaperConfigs(flatPaperConfigs.filter(c => c.paperId !== paperId));
     } else {
-      setFlatSelectedPapers([...flatSelectedPapers, paperId]);
+      // Add it and trigger date popup
+      setConfiguringPaperId(paperId);
+      setShowDatePopup(true);
     }
   };
 
@@ -274,7 +296,20 @@ export const DataMasters: React.FC<DataMastersProps> = ({
       </div>
 
       {/* Main Workspace Frame */}
-      <div className="lg:col-span-3 space-y-6">
+      <div className="lg:col-span-3 space-y-6 relative">
+        {/* BACKGROUND SAVING OVERLAY (Tester Requirement: Immediate Loading Effect) */}
+        {isAdding && (
+          <div className="absolute inset-0 z-40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-[2px] rounded-2xl flex items-center justify-center animate-in fade-in duration-200">
+            <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-slate-700">
+              <RefreshCw className="animate-spin text-emerald-400" size={24} />
+              <div className="pr-4">
+                <p className="text-sm font-bold uppercase tracking-tight">Persisting Record</p>
+                <p className="text-[10px] text-slate-400">Background IO active...</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {successMsg && (
           <div className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 px-4 py-3 rounded-xl border border-emerald-100 dark:border-emerald-900/60 flex items-center gap-2 text-xs font-semibold shadow-sm animate-fade-in">
             <CheckCircle2 size={16} className="text-emerald-500" />
@@ -319,9 +354,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
                   <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
                     <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
-                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                      <Calendar className="text-emerald-500" size={18} /> Paper Delivery Schedule
                     </h4>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">
+                      Configuring: {papers.find(p => p.id === configuringPaperId)?.name}
+                    </p>
                   </div>
 
                   <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
@@ -351,7 +388,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                     <div className="flex items-center gap-3 pt-2">
                       <button
                         type="button"
-                        onClick={() => setShowDatePopup(false)}
+                        onClick={handleCancelDatePopup}
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
                       >
                         Cancel
@@ -360,7 +397,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                         type="submit"
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                        <CheckCircle2 size={16} /> Complete Setup
+                        <CheckCircle2 size={16} /> Set Schedule
                       </button>
                     </div>
                   </form>
@@ -447,9 +484,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
                   <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
                     <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
-                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                      <Calendar className="text-emerald-500" size={18} /> Paper Delivery Schedule
                     </h4>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">
+                      Configuring: {papers.find(p => p.id === configuringPaperId)?.name}
+                    </p>
                   </div>
 
                   <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
@@ -479,7 +518,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                     <div className="flex items-center gap-3 pt-2">
                       <button
                         type="button"
-                        onClick={() => setShowDatePopup(false)}
+                        onClick={handleCancelDatePopup}
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
                       >
                         Cancel
@@ -488,7 +527,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                         type="submit"
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                        <CheckCircle2 size={16} /> Complete Setup
+                        <CheckCircle2 size={16} /> Set Schedule
                       </button>
                     </div>
                   </form>
@@ -584,9 +623,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
                   <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
                     <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
-                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                      <Calendar className="text-emerald-500" size={18} /> Paper Delivery Schedule
                     </h4>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">
+                      Configuring: {papers.find(p => p.id === configuringPaperId)?.name}
+                    </p>
                   </div>
 
                   <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
@@ -616,7 +657,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                     <div className="flex items-center gap-3 pt-2">
                       <button
                         type="button"
-                        onClick={() => setShowDatePopup(false)}
+                        onClick={handleCancelDatePopup}
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
                       >
                         Cancel
@@ -625,7 +666,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                         type="submit"
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                        <CheckCircle2 size={16} /> Complete Setup
+                        <CheckCircle2 size={16} /> Set Schedule
                       </button>
                     </div>
                   </form>
@@ -766,17 +807,25 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Select Subscribed Newspapers (Select at least one)</label>
                 <div className="flex flex-wrap gap-4 bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-150 dark:border-slate-700">
                   {papers.map((p) => {
-                    const isChecked = flatSelectedPapers.includes(p.id);
+                    const config = flatPaperConfigs.find(c => c.paperId === p.id);
+                    const isChecked = !!config;
                     return (
-                      <label key={p.id} className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handlePaperCheckbox(p.id)}
-                          className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                        />
-                        <span>{p.name} (₹{p.ratePerDay}/d)</span>
-                      </label>
+                      <div key={p.id} className="flex flex-col gap-1">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handlePaperCheckbox(p.id)}
+                            className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                          <span>{p.name} (₹{p.ratePerDay}/d)</span>
+                        </label>
+                        {config && config.fromDate && config.toDate && (
+                          <div className="ml-6 text-[9px] text-emerald-500 font-bold uppercase">
+                            {config.fromDate} to {config.toDate}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -798,9 +847,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
                   <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
                     <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
-                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                      <Calendar className="text-emerald-500" size={18} /> Paper Delivery Schedule
                     </h4>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">
+                      Configuring: {papers.find(p => p.id === configuringPaperId)?.name}
+                    </p>
                   </div>
 
                   <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
@@ -830,7 +881,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                     <div className="flex items-center gap-3 pt-2">
                       <button
                         type="button"
-                        onClick={() => setShowDatePopup(false)}
+                        onClick={handleCancelDatePopup}
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
                       >
                         Cancel
@@ -839,7 +890,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                         type="submit"
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                        <CheckCircle2 size={16} /> Complete Setup
+                        <CheckCircle2 size={16} /> Set Schedule
                       </button>
                     </div>
                   </form>
@@ -945,9 +996,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
                   <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
                     <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
-                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                      <Calendar className="text-emerald-500" size={18} /> Paper Delivery Schedule
                     </h4>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">
+                      Configuring: {papers.find(p => p.id === configuringPaperId)?.name}
+                    </p>
                   </div>
 
                   <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
@@ -977,7 +1030,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                     <div className="flex items-center gap-3 pt-2">
                       <button
                         type="button"
-                        onClick={() => setShowDatePopup(false)}
+                        onClick={handleCancelDatePopup}
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
                       >
                         Cancel
@@ -986,7 +1039,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                         type="submit"
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                        <CheckCircle2 size={16} /> Complete Setup
+                        <CheckCircle2 size={16} /> Set Schedule
                       </button>
                     </div>
                   </form>
@@ -1085,9 +1138,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
                   <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
                     <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
-                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                      <Calendar className="text-emerald-500" size={18} /> Paper Delivery Schedule
                     </h4>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">
+                      Configuring: {papers.find(p => p.id === configuringPaperId)?.name}
+                    </p>
                   </div>
 
                   <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
@@ -1117,7 +1172,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                     <div className="flex items-center gap-3 pt-2">
                       <button
                         type="button"
-                        onClick={() => setShowDatePopup(false)}
+                        onClick={handleCancelDatePopup}
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
                       >
                         Cancel
@@ -1126,7 +1181,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                         type="submit"
                         className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
                       >
-                        <CheckCircle2 size={16} /> Complete Setup
+                        <CheckCircle2 size={16} /> Set Schedule
                       </button>
                     </div>
                   </form>

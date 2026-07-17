@@ -1,0 +1,12 @@
+- `[x]` Update Data Models
+    - `[x]` Add dates to `Subscription` in `types.ts`
+    - `[x]` Add registration metadata to `Flat` in `types.ts`
+- `[x]` Refactor Registration UI (`DataMasters.tsx`)
+    - `[x]` Refactor paper selection state to store per-paper dates
+    - `[x]` Implement immediate popup for date selection when checking a paper
+    - `[x]` Update form submission to pass detailed paper configs
+- `[x]` Update App Logic (`App.tsx`)
+    - `[x]` Update `handleAddFlat` to save per-paper dates into `Subscription` records
+- `[x]` Refactor Billing Engine (`dummyGenerator.ts`)
+    - `[x]` Update `calculateBill` to respect `fromDate` and `toDate` in `Subscription`
+- `[ ]` Verify changes in emulator

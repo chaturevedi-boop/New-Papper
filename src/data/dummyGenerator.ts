@@ -184,13 +184,20 @@ export function calculateBill(
   const daysInMonth = new Date(year, month, 0).getDate();
   const monthStr = month < 10 ? `0${month}` : `${month}`;
   
-  const subscribedPapersBreakdown = flatPapers.map((paper) => {
+  const subscribedPapersBreakdown = flatSubs.map((sub) => {
+    const paper = papers.find(p => p.id === sub.paperId);
+    if (!paper) return null;
+
     let deliveredCount = 0;
     let skippedCount = 0;
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dayStr = day < 10 ? `0${day}` : `${day}`;
       const dateStr = `${year}-${monthStr}-${dayStr}`;
+
+      // Date range check for granular subscription
+      if (sub.fromDate && dateStr < sub.fromDate) continue;
+      if (sub.toDate && dateStr > sub.toDate) continue;
 
       const log = deliveryLogs.find(
         (l) => l.flatId === flat.id && l.paperId === paper.id && l.date === dateStr
@@ -217,7 +224,7 @@ export function calculateBill(
       skippedDays: skippedCount,
       cost,
     };
-  });
+  }).filter((p): p is NonNullable<typeof p> => p !== null);
 
   const totalDelivered = subscribedPapersBreakdown.reduce((acc, p) => acc + p.deliveredDays, 0);
   const totalSkipped = subscribedPapersBreakdown.reduce((acc, p) => acc + p.skippedDays, 0);
@@ -236,6 +243,7 @@ export function calculateBill(
   return {
     flatId: flat.id,
     customerName: flat.customerName,
+    phoneNumber: flat.phoneNumber,
     flatNumber: flat.flatNumber,
     locationPath,
     month,

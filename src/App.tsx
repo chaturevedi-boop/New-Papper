@@ -45,11 +45,11 @@ export default function App() {
   // Handle Tab Switch with simulated "Background Processing" Global Loader
   const handleTabChange = (tab: TabType) => {
     setIsTabSwitching(true);
-    // Standardized background thread processing simulation for ALL tabs
+    // Standardized background thread processing simulation for ALL tabs (Tester Robustness)
     setTimeout(() => {
       setActiveTab(tab);
       setIsTabSwitching(false);
-    }, 600);
+    }, 1000);
   };
 
   // Modal displays
@@ -107,19 +107,21 @@ export default function App() {
     setDb(prev => ({ ...prev, wings: [...prev.wings, wing] }));
   };
 
-  const handleAddFlat = (flat: Flat, papersChosen: string[]) => {
+  const handleAddFlat = (flat: Flat, configs: { paperId: string, fromDate?: string, toDate?: string }[]) => {
     setDb(prev => {
       // 1. Add Flat
       const flatsList = [...prev.flats, flat];
 
       // 2. Add subscriptions
       const subs = [...prev.subscriptions];
-      papersChosen.forEach((pId, idx) => {
+      configs.forEach((config, idx) => {
         subs.push({
           id: `sub_${flat.id}_${idx + 1}`,
           flatId: flat.id,
-          paperId: pId,
-          active: true
+          paperId: config.paperId,
+          active: true,
+          fromDate: config.fromDate,
+          toDate: config.toDate
         });
       });
 
@@ -471,14 +473,17 @@ export default function App() {
         </div>
       </main>
 
-      {/* Global Tab Switching Loader Overlay */}
+      {/* Global Tab Switching Loader Overlay (Tester Optimized - Solid Backdrop) */}
       {isTabSwitching && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 border border-slate-800">
-            <RefreshCw className="text-emerald-500 animate-spin" size={32} />
+        <div className="fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center animate-in fade-in duration-300">
+          <div className="flex flex-col items-center gap-6">
+            <div className="relative">
+              <RefreshCw className="text-emerald-500 animate-spin" size={48} />
+              <div className="absolute inset-0 blur-xl bg-emerald-500/20 rounded-full animate-pulse"></div>
+            </div>
             <div className="text-center">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tighter">Optimizing Ledgers</h4>
-              <p className="text-[10px] text-slate-500 mt-1">Background thread processing active...</p>
+              <h4 className="text-lg font-black text-white uppercase tracking-tighter">Synchronizing Data</h4>
+              <p className="text-xs text-slate-400 mt-2 font-medium">Optimizing background thread processing...</p>
             </div>
           </div>
         </div>

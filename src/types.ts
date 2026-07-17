@@ -22,6 +22,9 @@ export interface Flat {
   customerName: string;
   phoneNumber: string;
   activeYear: number; // e.g. 2026
+  ledgerType?: 'SUBSCRIPTION' | 'BILLING';
+  fromDate?: string;
+  toDate?: string;
 }
 
 export interface Paper {
@@ -35,6 +38,8 @@ export interface Subscription {
   flatId: string;
   paperId: string;
   active: boolean;
+  fromDate?: string;
+  toDate?: string;
 }
 
 export interface DeliveryAgent {
@@ -55,6 +60,7 @@ export interface DeliveryLog {
 export interface BillingSummary {
   flatId: string;
   customerName: string;
+  phoneNumber: string; // Map this from Flat
   flatNumber: string;
   locationPath: string; // Area > Building > Wing > Flat
   month: number; // 1-12
