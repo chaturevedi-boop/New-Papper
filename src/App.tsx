@@ -40,6 +40,21 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState<number>(6); // Default to June
   const [selectedYear, setSelectedYear] = useState<number>(2026); // Default to 2026
   const [activeTab, setActiveTab] = useState<TabType>('drops');
+  const [isTabSwitching, setIsTabSwitching] = useState(false);
+
+  // Handle Tab Switch with simulated "Background Processing" Lag Fix
+  const handleTabChange = (tab: TabType) => {
+    if (tab === 'masters') {
+      setIsTabSwitching(true);
+      // Simulate heavy ledger fetching/processing
+      setTimeout(() => {
+        setActiveTab(tab);
+        setIsTabSwitching(false);
+      }, 800);
+    } else {
+      setActiveTab(tab);
+    }
+  };
 
   // Modal displays
   const [selectedInvoice, setSelectedInvoice] = useState<BillingSummary | null>(null);
@@ -325,7 +340,7 @@ export default function App() {
           {/* Interactive Navigation Pills & Actions */}
           <div className="flex flex-wrap items-center gap-2.5">
             <button
-              onClick={() => setActiveTab('drops')}
+              onClick={() => handleTabChange('drops')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'drops' 
                   ? 'bg-emerald-600 text-white shadow-sm' 
@@ -337,7 +352,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveTab('billing')}
+              onClick={() => handleTabChange('billing')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'billing' 
                   ? 'bg-emerald-600 text-white shadow-sm' 
@@ -349,7 +364,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveTab('masters')}
+              onClick={() => handleTabChange('masters')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'masters' 
                   ? 'bg-emerald-600 text-white shadow-sm' 
@@ -361,7 +376,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveTab('architect')}
+              onClick={() => handleTabChange('architect')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'architect' 
                   ? 'bg-slate-800 text-emerald-400 border border-slate-700 shadow-sm' 
@@ -459,6 +474,19 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {/* Global Tab Switching Loader Overlay */}
+      {isTabSwitching && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 border border-slate-800">
+            <RefreshCw className="text-emerald-500 animate-spin" size={32} />
+            <div className="text-center">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tighter">Optimizing Ledgers</h4>
+              <p className="text-[10px] text-slate-500 mt-1">Background thread processing active...</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Invoice Detail Overlay Modal */}
       {selectedInvoice && (

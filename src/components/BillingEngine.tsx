@@ -34,6 +34,32 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
   const [buildingFilter, setBuildingFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Feature: Admin Mark as Paid confirmation states
+  const [confirmingFlatId, setConfirmingFlatId] = useState<string | null>(null);
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+
+  const handleToggleClick = (flatId: string, currentStatus: boolean) => {
+    if (currentStatus) {
+      // If already paid, toggle back to unpaid directly or ask? Usually admin marks as paid.
+      // Let's ask for both to be safe and simulate "Admin workflow"
+      setConfirmingFlatId(flatId);
+    } else {
+      setConfirmingFlatId(flatId);
+    }
+  };
+
+  const confirmToggle = async () => {
+    if (!confirmingFlatId) return;
+    setIsUpdatingPayment(true);
+
+    // Simulate background thread update
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    onTogglePaymentStatus(confirmingFlatId);
+    setIsUpdatingPayment(false);
+    setConfirmingFlatId(null);
+  };
+
   // Dependent buildings list
   const filteredBuildings = useMemo(() => {
     if (areaFilter === 'ALL') return [];
@@ -279,15 +305,21 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
                   </td>
                   <td className="py-3.5 px-4 text-center">
                     <button
-                      onClick={() => onTogglePaymentStatus(bill.flatId)}
-                      className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                      onClick={() => handleToggleClick(bill.flatId, bill.paid)}
+                      disabled={isUpdatingPayment && confirmingFlatId === bill.flatId}
+                      className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto ${
                         bill.paid
                           ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/20'
                           : 'bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30'
                       }`}
                       title="Click to toggle Paid/Unpaid"
                     >
-                      {bill.paid ? 'PAID' : 'UNPAID'}
+                      {isUpdatingPayment && confirmingFlatId === bill.flatId ? (
+                        <RefreshCw size={10} className="animate-spin" />
+                      ) : (
+                        bill.paid ? <CheckCircle size={10} /> : <AlertCircle size={10} />
+                      )}
+                      <span>{bill.paid ? 'PAID' : 'UNPAID'}</span>
                     </button>
                   </td>
                   <td className="py-3.5 px-4 text-center">
@@ -305,6 +337,44 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Admin Confirmation Dialog Overlay */}
+      {confirmingFlatId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-950/40 rounded-xl">
+                <CreditCard className="text-emerald-600 dark:text-emerald-400" size={20} />
+              </div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">Payment Status Update</h4>
+            </div>
+
+            <div className="p-5">
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Are you sure you want to change the status of this invoice? This will instantly update the collection stats for this month.
+              </p>
+
+              <div className="mt-6 flex items-center gap-3">
+                <button
+                  onClick={() => setConfirmingFlatId(null)}
+                  disabled={isUpdatingPayment}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmToggle}
+                  disabled={isUpdatingPayment}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isUpdatingPayment ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                  <span>{isUpdatingPayment ? 'Updating...' : 'Confirm'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

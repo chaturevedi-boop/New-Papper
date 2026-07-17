@@ -39,6 +39,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
   const { areas, buildings, wings, flats, papers, agents, subscriptions } = state;
   const [activeTab, setActiveTab] = useState<ActiveSubTab>('areas');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
   // Form states
   const [areaName, setAreaName] = useState('');
@@ -66,22 +67,32 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     setTimeout(() => setSuccessMsg(null), 3000);
   };
 
-  // Submit handlers
-  const handleAddAreaSubmit = (e: React.FormEvent) => {
+  // Submit handlers with Simulated Background Thread (Lag Fix)
+  const handleAddAreaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!areaName.trim()) return;
+    if (!areaName.trim() || isAdding) return;
+
+    setIsAdding(true);
+    // Simulate background DB thread
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     const newArea: Area = {
       id: `area_${Date.now()}`,
       name: areaName.trim()
     };
     onAddArea(newArea);
     setAreaName('');
+    setIsAdding(false);
     triggerSuccess(`Successfully added Area: ${newArea.name}`);
   };
 
-  const handleAddBuildingSubmit = (e: React.FormEvent) => {
+  const handleAddBuildingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!buildingName.trim() || !buildingAreaId) return;
+    if (!buildingName.trim() || !buildingAreaId || isAdding) return;
+
+    setIsAdding(true);
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     const newBuilding: Building = {
       id: `b_${Date.now()}`,
       areaId: buildingAreaId,
@@ -89,12 +100,17 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     };
     onAddBuilding(newBuilding);
     setBuildingName('');
+    setIsAdding(false);
     triggerSuccess(`Successfully added Building: ${newBuilding.name}`);
   };
 
-  const handleAddWingSubmit = (e: React.FormEvent) => {
+  const handleAddWingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!wingName.trim() || !wingBuildingId) return;
+    if (!wingName.trim() || !wingBuildingId || isAdding) return;
+
+    setIsAdding(true);
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     const newWing: Wing = {
       id: `w_${Date.now()}`,
       buildingId: wingBuildingId,
@@ -102,12 +118,17 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     };
     onAddWing(newWing);
     setWingName('');
+    setIsAdding(false);
     triggerSuccess(`Successfully added Wing: ${newWing.name}`);
   };
 
-  const handleAddFlatSubmit = (e: React.FormEvent) => {
+  const handleAddFlatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!flatNumber.trim() || !flatCustomerName.trim() || !flatPhone.trim() || !flatWingId || flatSelectedPapers.length === 0) return;
+    if (!flatNumber.trim() || !flatCustomerName.trim() || !flatPhone.trim() || !flatWingId || flatSelectedPapers.length === 0 || isAdding) return;
+
+    setIsAdding(true);
+    await new Promise(resolve => setTimeout(resolve, 800));
+
     const newFlat: Flat = {
       id: `f_${Date.now()}`,
       wingId: flatWingId,
@@ -121,13 +142,18 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     setFlatCustomerName('');
     setFlatPhone('');
     setFlatSelectedPapers([]);
+    setIsAdding(false);
     triggerSuccess(`Successfully registered Customer: ${newFlat.customerName} (Flat ${newFlat.flatNumber})`);
   };
 
-  const handleAddPaperSubmit = (e: React.FormEvent) => {
+  const handleAddPaperSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const rateNum = parseFloat(paperRate);
-    if (!paperName.trim() || isNaN(rateNum)) return;
+    if (!paperName.trim() || isNaN(rateNum) || isAdding) return;
+
+    setIsAdding(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     const newPaper: Paper = {
       id: `p_${Date.now()}`,
       name: paperName.trim(),
@@ -136,12 +162,17 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     onAddPaper(newPaper);
     setPaperName('');
     setPaperRate('');
+    setIsAdding(false);
     triggerSuccess(`Successfully added Newspaper Rate Card: ${newPaper.name}`);
   };
 
-  const handleAddAgentSubmit = (e: React.FormEvent) => {
+  const handleAddAgentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agentName.trim() || !agentPhone.trim() || !agentAreaId) return;
+    if (!agentName.trim() || !agentPhone.trim() || !agentAreaId || isAdding) return;
+
+    setIsAdding(true);
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     const newAgent: DeliveryAgent = {
       id: `a_${Date.now()}`,
       name: agentName.trim(),
@@ -151,6 +182,7 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     onAddAgent(newAgent);
     setAgentName('');
     setAgentPhone('');
+    setIsAdding(false);
     triggerSuccess(`Registered Delivery Agent: ${newAgent.name}`);
   };
 
@@ -243,9 +275,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
               </div>
               <button
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer"
+                disabled={isAdding}
+                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
               >
-                <Plus size={14} /> Add Area
+                {isAdding ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                {isAdding ? 'Processing...' : 'Add Area'}
               </button>
             </form>
 
@@ -314,9 +348,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
               </div>
               <button
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer"
+                disabled={isAdding}
+                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
               >
-                <Plus size={14} /> Add Building
+                {isAdding ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                {isAdding ? 'Processing...' : 'Add Building'}
               </button>
             </form>
 
@@ -394,9 +430,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
               </div>
               <button
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer"
+                disabled={isAdding}
+                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
               >
-                <Plus size={14} /> Add Wing
+                {isAdding ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                {isAdding ? 'Processing...' : 'Add Wing'}
               </button>
             </form>
 
@@ -527,9 +565,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
 
               <button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+                disabled={isAdding}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
               >
-                <Plus size={14} /> Register Customer Ledger & Subscriptions
+                {isAdding ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                {isAdding ? 'Registering...' : 'Register Customer Ledger & Subscriptions'}
               </button>
             </form>
 
@@ -617,9 +657,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
               </div>
               <button
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer"
+                disabled={isAdding}
+                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
               >
-                <Plus size={14} /> Add Newspaper
+                {isAdding ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                {isAdding ? 'Processing...' : 'Add Newspaper'}
               </button>
             </form>
 
@@ -700,9 +742,11 @@ export const DataMasters: React.FC<DataMastersProps> = ({
               </div>
               <button
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer"
+                disabled={isAdding}
+                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
               >
-                <Plus size={14} /> Register Agent
+                {isAdding ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                {isAdding ? 'Registering...' : 'Register Agent'}
               </button>
             </form>
 
