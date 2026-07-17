@@ -44,11 +44,13 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   }, [bill, monthName]);
 
   const cleanPhone = useMemo(() => {
-    return bill.customerName ? "+919876543210" : ""; // fallback simulation phone
+    // BUG FIX: Using customer's phone number instead of hardcoded vendor number
+    const phone = bill.customerName ? bill.phoneNumber : "";
+    return phone.replace(/[^0-9]/g, ''); // Standard clean digits for WhatsApp API
   }, [bill]);
 
   // Click to open WhatsApp Web API Link
-  const whatsAppApiUrl = `https://wa.me/919876543210?text=${prefilledText}`;
+  const whatsAppApiUrl = `https://wa.me/${cleanPhone}?text=${prefilledText}`;
 
   // Custom function to trigger browser printing for the invoice specifically
   const handlePrint = () => {
@@ -232,6 +234,24 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             </div>
           </div>
 
+          {/* PRINT FIX: A4 Scaling Styles */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              @page { size: A4; margin: 0; }
+              body { background: white; margin: 0; padding: 0; }
+              #invoice-print-area {
+                width: 210mm;
+                min-height: 297mm;
+                padding: 10mm;
+                margin: 0 auto;
+                box-shadow: none !important;
+                border: none !important;
+                background: white !important;
+              }
+              .print\\:hidden { display: none !important; }
+            }
+          `}} />
+
           {/* Disclaimers */}
           <div className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed border-t border-slate-100 dark:border-slate-800 pt-4">
             <p><strong>Deductions Rule:</strong> Subscription rates are active for Calendar Year 2026. Daily skips have been logged via delivery agent drop list scans and subtracted from your gross balance. Please settle your bill balance by the 10th of this month.</p>
@@ -268,6 +288,14 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             >
               <Share2 size={14} />
               <span>Dispatch to WhatsApp</span>
+            </button>
+
+            {/* BUG FIX: Adding Missing Close Button at bottom */}
+            <button
+              onClick={onClose}
+              className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl px-4 py-2 transition-colors cursor-pointer"
+            >
+              Close
             </button>
           </div>
         </div>

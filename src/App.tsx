@@ -42,18 +42,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('drops');
   const [isTabSwitching, setIsTabSwitching] = useState(false);
 
-  // Handle Tab Switch with simulated "Background Processing" Lag Fix
+  // Handle Tab Switch with simulated "Background Processing" Global Loader
   const handleTabChange = (tab: TabType) => {
-    if (tab === 'masters') {
-      setIsTabSwitching(true);
-      // Simulate heavy ledger fetching/processing
-      setTimeout(() => {
-        setActiveTab(tab);
-        setIsTabSwitching(false);
-      }, 800);
-    } else {
+    setIsTabSwitching(true);
+    // Standardized background thread processing simulation for ALL tabs
+    setTimeout(() => {
       setActiveTab(tab);
-    }
+      setIsTabSwitching(false);
+    }, 600);
   };
 
   // Modal displays

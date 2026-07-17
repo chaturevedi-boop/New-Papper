@@ -55,6 +55,12 @@ export const DataMasters: React.FC<DataMastersProps> = ({
   const [flatWingId, setFlatWingId] = useState('');
   const [flatSelectedPapers, setFlatSelectedPapers] = useState<string[]>([]);
 
+  // Dynamic Registration State
+  const [ledgerType, setLedgerType] = useState<'SUBSCRIPTION' | 'BILLING'>('SUBSCRIPTION');
+  const [showDatePopup, setShowDatePopup] = useState(false);
+  const [billingFromDate, setBillingFromDate] = useState('');
+  const [billingToDate, setBillingToDate] = useState('');
+
   const [paperName, setPaperName] = useState('');
   const [paperRate, setPaperRate] = useState('');
 
@@ -126,6 +132,12 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     e.preventDefault();
     if (!flatNumber.trim() || !flatCustomerName.trim() || !flatPhone.trim() || !flatWingId || flatSelectedPapers.length === 0 || isAdding) return;
 
+    // Trigger Popup if "Billing" is selected and dates are not yet provided
+    if (ledgerType === 'BILLING' && (!billingFromDate || !billingToDate)) {
+      setShowDatePopup(true);
+      return;
+    }
+
     setIsAdding(true);
     await new Promise(resolve => setTimeout(resolve, 800));
 
@@ -135,15 +147,33 @@ export const DataMasters: React.FC<DataMastersProps> = ({
       flatNumber: flatNumber.trim(),
       customerName: flatCustomerName.trim(),
       phoneNumber: flatPhone.trim(),
-      activeYear: 2026
+      activeYear: 2026,
+      // Metadata added for dynamic type feature
+      ledgerType: ledgerType,
+      fromDate: billingFromDate || undefined,
+      toDate: billingToDate || undefined
     };
     onAddFlat(newFlat, flatSelectedPapers);
+
+    // Reset all form states
     setFlatNumber('');
     setFlatCustomerName('');
     setFlatPhone('');
     setFlatSelectedPapers([]);
+    setLedgerType('SUBSCRIPTION');
+    setBillingFromDate('');
+    setBillingToDate('');
     setIsAdding(false);
     triggerSuccess(`Successfully registered Customer: ${newFlat.customerName} (Flat ${newFlat.flatNumber})`);
+  };
+
+  const handleConfirmBillingDates = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!billingFromDate || !billingToDate) return;
+    setShowDatePopup(false);
+    // Proceed with registration now that dates are captured
+    const dummyEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleAddFlatSubmit(dummyEvent);
   };
 
   const handleAddPaperSubmit = async (e: React.FormEvent) => {
@@ -283,6 +313,61 @@ export const DataMasters: React.FC<DataMastersProps> = ({
               </button>
             </form>
 
+            {/* Conditional Date Selection Popup */}
+            {showDatePopup && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
+                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                    </h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                  </div>
+
+                  <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingFromDate}
+                          onChange={(e) => setBillingFromDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">End Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingToDate}
+                          onChange={(e) => setBillingToDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDatePopup(false)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 size={16} /> Complete Setup
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
             {/* List Areas */}
             <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
               <table className="w-full text-left">
@@ -355,6 +440,61 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 {isAdding ? 'Processing...' : 'Add Building'}
               </button>
             </form>
+
+            {/* Conditional Date Selection Popup */}
+            {showDatePopup && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
+                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                    </h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                  </div>
+
+                  <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingFromDate}
+                          onChange={(e) => setBillingFromDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">End Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingToDate}
+                          onChange={(e) => setBillingToDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDatePopup(false)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 size={16} /> Complete Setup
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
 
             {/* List Buildings */}
             <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
@@ -437,6 +577,61 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 {isAdding ? 'Processing...' : 'Add Wing'}
               </button>
             </form>
+
+            {/* Conditional Date Selection Popup */}
+            {showDatePopup && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
+                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                    </h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                  </div>
+
+                  <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingFromDate}
+                          onChange={(e) => setBillingFromDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">End Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingToDate}
+                          onChange={(e) => setBillingToDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDatePopup(false)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 size={16} /> Complete Setup
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
 
             {/* List Wings */}
             <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
@@ -540,6 +735,30 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                     className="w-full text-xs px-3.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:text-slate-100"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Registration Ledger Type</label>
+                  <div className="flex bg-white dark:bg-slate-800 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setLedgerType('SUBSCRIPTION')}
+                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                        ledgerType === 'SUBSCRIPTION' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400'
+                      }`}
+                    >
+                      Subscription
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLedgerType('BILLING')}
+                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                        ledgerType === 'BILLING' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400'
+                      }`}
+                    >
+                      Billing (Timed)
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Subscriptions Choice */}
@@ -572,6 +791,61 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 {isAdding ? 'Registering...' : 'Register Customer Ledger & Subscriptions'}
               </button>
             </form>
+
+            {/* Conditional Date Selection Popup */}
+            {showDatePopup && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
+                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                    </h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                  </div>
+
+                  <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingFromDate}
+                          onChange={(e) => setBillingFromDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">End Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingToDate}
+                          onChange={(e) => setBillingToDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDatePopup(false)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 size={16} /> Complete Setup
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
 
             {/* List Flats */}
             <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden max-h-[350px] overflow-y-auto">
@@ -665,6 +939,61 @@ export const DataMasters: React.FC<DataMastersProps> = ({
               </button>
             </form>
 
+            {/* Conditional Date Selection Popup */}
+            {showDatePopup && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
+                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                    </h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                  </div>
+
+                  <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingFromDate}
+                          onChange={(e) => setBillingFromDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">End Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingToDate}
+                          onChange={(e) => setBillingToDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDatePopup(false)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 size={16} /> Complete Setup
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
             {/* List Papers */}
             <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
               <table className="w-full text-left">
@@ -749,6 +1078,61 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 {isAdding ? 'Registering...' : 'Register Agent'}
               </button>
             </form>
+
+            {/* Conditional Date Selection Popup */}
+            {showDatePopup && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
+                      <Calendar className="text-emerald-500" size={18} /> Billing Cycle Setup
+                    </h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold">Registration type: Billing</p>
+                  </div>
+
+                  <form onSubmit={handleConfirmBillingDates} className="p-6 space-y-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingFromDate}
+                          onChange={(e) => setBillingFromDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">End Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={billingToDate}
+                          onChange={(e) => setBillingToDate(e.target.value)}
+                          className="w-full text-xs p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDatePopup(false)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 size={16} /> Complete Setup
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
 
             {/* List Agents */}
             <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">

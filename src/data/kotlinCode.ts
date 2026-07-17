@@ -79,7 +79,11 @@ data class Flat(
     val flatNumber: String,
     val customerName: String,
     val phoneNumber: String,
-    val activeYear: Int = 2026
+    val activeYear: Int = 2026,
+    // FEATURE: Dynamic Ledger Metadata
+    val ledgerType: String = "SUBSCRIPTION", // "SUBSCRIPTION" or "BILLING"
+    val fromDate: String? = null,
+    val toDate: String? = null
 )
 
 @Entity(tableName = "papers")
@@ -829,7 +833,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-importimport android.graphics.Typeface
+import import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import com.premium.newspaper.ui.screen.BillingBreakdownItem
 import java.io.File
@@ -948,9 +952,10 @@ class PdfGenerationService(private val context: Context) {
         // Finish Page
         pdfDocument.finishPage(page)
         
-        // Save PDF to App Cache Storage File
-        val pdfFile = File(context.cacheDir, "invoice_\${customerName.replace(" ", "_")}.pdf")
+        // BUG FIX: Use Scoped Storage and consistent background file creation
+        val pdfFile = File(context.getExternalFilesDir(null), "invoice_\${customerName.replace(" ", "_")}.pdf")
         return try {
+            if (pdfFile.exists()) pdfFile.delete()
             val fileOutputStream = FileOutputStream(pdfFile)
             pdfDocument.writeTo(fileOutputStream)
             pdfDocument.close()
@@ -961,6 +966,50 @@ class PdfGenerationService(private val context: Context) {
             pdfDocument.close()
             null
         }
+    }
+}
+`
+  },
+  {
+    name: "PrintHelper.kt",
+    category: "System Services",
+    language: "kotlin",
+    description: "Production-grade A4 printing service using Android PrintManager and custom PrintDocumentAdapter for standard document adaptation.",
+    content: `package com.premium.newspaper.helper
+
+import android.content.Context
+import android.print.PrintAttributes
+import android.print.PrintManager
+import android.webkit.WebView
+import android.webkit.WebViewClient
+
+object PrintHelper {
+
+    /**
+     * Prints an HTML-based invoice or View content as a standard A4 document.
+     */
+    fun printA4Invoice(context: Context, htmlContent: String, jobName: String) {
+        val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
+
+        val webView = WebView(context)
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String) {
+                // Create print adapter from webview
+                val printAdapter = webView.createPrintDocumentAdapter(jobName)
+
+                // BUG FIX: Force Standard A4 Attributes
+                val attributes = PrintAttributes.Builder()
+                    .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                    .setResolution(PrintAttributes.Resolution("id", "A4", 300, 300))
+                    .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+                    .build()
+
+                printManager.print(jobName, printAdapter, attributes)
+            }
+        }
+
+        // Load data with A4 responsive base
+        webView.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
     }
 }`
   },
@@ -986,18 +1035,20 @@ object WhatsAppShareHelper {
     fun shareInvoicePdfToWhatsApp(
         context: Context,
         pdfFile: File,
-        phoneNumber: String // customer phone target (e.g. "+919876543210")
+        phoneNumber: String // BUG FIX: Explicitly target the customer's phone number
     ) {
         try {
-            // Get secure content URI using FileProvider authority
+            val cleanPhone = phoneNumber.replace("+", "").replace(" ", "")
             val authority = "\${context.packageName}.fileprovider"
             val contentUri: Uri = FileProvider.getUriForFile(context, authority, pdfFile)
 
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "application/pdf"
                 putExtra(Intent.EXTRA_STREAM, contentUri)
-                // Guide android OS to target WhatsApp package specifically if installed
+                // Direct package targeting for WhatsApp
                 setPackage("com.whatsapp")
+                // BUG FIX: Include phone number in the intent for direct chat targeting where possible
+                putExtra("jid", "\$cleanPhone@s.whatsapp.net")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
