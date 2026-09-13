@@ -1,6 +1,5 @@
-import React from 'react';
-import { DatabaseState } from '../data/dummyGenerator';
-import { calculateBill } from '../data/dummyGenerator';
+import React, { useMemo } from 'react';
+import { DatabaseState, calculateBill, getPaymentOverrideKey } from '../data/dummyGenerator';
 import { 
   Building2, 
   TrendingUp, 
@@ -32,29 +31,35 @@ const MONTH_NAMES = [
 export const DashboardStats: React.FC<DashboardStatsProps> = ({ state, month, year }) => {
   const { areas, buildings, flats, papers, subscriptions } = state;
 
-  // Calculate high-level stats for the given month, accounting for localStorage payment overrides
-  let grossPotential = 0;
-  let collectedAmount = 0;
-  let pendingAmount = 0;
-  let paidCount = 0;
-  let unpaidCount = 0;
+  // Calculate high-level stats for the given month, accounting for payment overrides.
+  // Memoized since calculateBill runs once per flat and this component re-renders on
+  // any parent state change (tab switches, modal toggles, etc.), not just data changes.
+  const { grossPotential, collectedAmount, pendingAmount, paidCount, unpaidCount } = useMemo(() => {
+    let grossPotential = 0;
+    let collectedAmount = 0;
+    let pendingAmount = 0;
+    let paidCount = 0;
+    let unpaidCount = 0;
 
-  flats.forEach((flat) => {
-    const bill = calculateBill(flat, month, year, state);
-    
-    // Inject localStorage override if present
-    const key = `payment_override_${flat.id}_${month}_${year}`;
-    const override = localStorage.getItem(key);
-    let isPaid = bill.paid;
-    if (override === 'PAID') isPaid = true;
-    if (override === 'UNPAID') isPaid = false;
+    flats.forEach((flat) => {
+      const bill = calculateBill(flat, month, year, state);
 
-    grossPotential += bill.grossAmount;
-    collectedAmount += isPaid ? bill.netAmount : 0;
-    pendingAmount += !isPaid ? bill.netAmount : 0;
-    if (isPaid) paidCount++;
-    else unpaidCount++;
-  });
+      // Inject payment override if present
+      const key = getPaymentOverrideKey(flat.id, month, year);
+      const override = state.paymentOverrides[key];
+      let isPaid = bill.paid;
+      if (override === 'PAID') isPaid = true;
+      if (override === 'UNPAID') isPaid = false;
+
+      grossPotential += bill.grossAmount;
+      collectedAmount += isPaid ? bill.netAmount : 0;
+      pendingAmount += !isPaid ? bill.netAmount : 0;
+      if (isPaid) paidCount++;
+      else unpaidCount++;
+    });
+
+    return { grossPotential, collectedAmount, pendingAmount, paidCount, unpaidCount };
+  }, [flats, month, year, state]);
 
   const activeSubsCount = subscriptions.filter(s => s.active).length;
 
@@ -96,45 +101,48 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ state, month, ye
     },
   ];
 
-  // Calculate monthly revenue trends across the last six months
-  const lastSixMonths = [];
-  for (let i = 5; i >= 0; i--) {
-    let m = month - i;
-    let y = year;
-    while (m <= 0) {
-      m += 12;
-      y -= 1;
-    }
-    lastSixMonths.push({ month: m, year: y });
-  }
-
-  const chartData = lastSixMonths.map(({ month: m, year: y }) => {
-    let collected = 0;
-    let pending = 0;
-    
-    flats.forEach((flat) => {
-      const bill = calculateBill(flat, m, y, state);
-      
-      // Inject localStorage override if present
-      const key = `payment_override_${flat.id}_${m}_${y}`;
-      const override = localStorage.getItem(key);
-      let isPaid = bill.paid;
-      if (override === 'PAID') isPaid = true;
-      if (override === 'UNPAID') isPaid = false;
-
-      if (isPaid) {
-        collected += bill.netAmount;
-      } else {
-        pending += bill.netAmount;
+  // Calculate monthly revenue trends across the last six months (also memoized -
+  // this runs calculateBill for every flat across 6 months, ~6x the cost above)
+  const chartData = useMemo(() => {
+    const lastSixMonths = [];
+    for (let i = 5; i >= 0; i--) {
+      let m = month - i;
+      let y = year;
+      while (m <= 0) {
+        m += 12;
+        y -= 1;
       }
-    });
+      lastSixMonths.push({ month: m, year: y });
+    }
 
-    return {
-      name: `${MONTH_NAMES[m - 1]} '${y.toString().slice(-2)}`,
-      Collected: Math.round(collected),
-      Pending: Math.round(pending),
-    };
-  });
+    return lastSixMonths.map(({ month: m, year: y }) => {
+      let collected = 0;
+      let pending = 0;
+
+      flats.forEach((flat) => {
+        const bill = calculateBill(flat, m, y, state);
+
+        // Inject payment override if present
+        const key = getPaymentOverrideKey(flat.id, m, y);
+        const override = state.paymentOverrides[key];
+        let isPaid = bill.paid;
+        if (override === 'PAID') isPaid = true;
+        if (override === 'UNPAID') isPaid = false;
+
+        if (isPaid) {
+          collected += bill.netAmount;
+        } else {
+          pending += bill.netAmount;
+        }
+      });
+
+      return {
+        name: `${MONTH_NAMES[m - 1]} '${y.toString().slice(-2)}`,
+        Collected: Math.round(collected),
+        Pending: Math.round(pending),
+      };
+    });
+  }, [flats, month, year, state]);
 
   // Custom polished tooltip matching the elegant UI
   const CustomTooltip = ({ active, payload, label }: any) => {

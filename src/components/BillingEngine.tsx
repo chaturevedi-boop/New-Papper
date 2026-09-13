@@ -1,16 +1,20 @@
 import React, { useState, useMemo } from 'react';
-import { DatabaseState, calculateBill } from '../data/dummyGenerator';
-import { Flat, BillingSummary } from '../types';
-import { 
-  FileSpreadsheet, 
-  Search, 
-  Download, 
-  Eye, 
-  CheckCircle, 
+import { DatabaseState, calculateBill, getPaymentOverrideKey } from '../data/dummyGenerator';
+import { BillingSummary } from '../types';
+import { shareOrDownloadFile } from '../utils/shareFile';
+import {
+  FileSpreadsheet,
+  Search,
+  Download,
+  Eye,
+  CheckCircle,
   AlertCircle,
-  TrendingUp,
+  AlertTriangle,
   CreditCard,
-  Building
+  RefreshCw,
+  MessageCircleWarning,
+  X,
+  Send
 } from 'lucide-react';
 
 interface BillingEngineProps {
@@ -37,6 +41,8 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
   // Feature: Admin Mark as Paid confirmation states
   const [confirmingFlatId, setConfirmingFlatId] = useState<string | null>(null);
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [exportFailed, setExportFailed] = useState(false);
 
   const handleToggleClick = (flatId: string, currentStatus: boolean) => {
     if (currentStatus) {
@@ -72,9 +78,16 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
     setBuildingFilter('ALL');
   };
 
-  // Compile billing list based on filters
+  // Compile billing list based on filters, applying any payment overrides
   const billingSummaries = useMemo(() => {
-    return flats.map(flat => calculateBill(flat, selectedMonth, selectedYear, state));
+    return flats.map(flat => {
+      const bill = calculateBill(flat, selectedMonth, selectedYear, state);
+      const key = getPaymentOverrideKey(flat.id, selectedMonth, selectedYear);
+      const override = state.paymentOverrides[key];
+      if (override === 'PAID') bill.paid = true;
+      if (override === 'UNPAID') bill.paid = false;
+      return bill;
+    });
   }, [flats, selectedMonth, selectedYear, state]);
 
   // Filter summaries
@@ -116,16 +129,27 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
     return { gross, deductions, net, collected, outstanding };
   }, [filteredSummaries]);
 
+  // Unpaid customers within the current filters, for the bulk reminder workflow
+  const unpaidSummaries = useMemo(() => filteredSummaries.filter(bill => !bill.paid), [filteredSummaries]);
+
+  const buildReminderWhatsAppUrl = (bill: BillingSummary) => {
+    const monthName = monthNames[selectedMonth - 1];
+    const cleanPhone = (bill.phoneNumber || '').replace(/\+/g, '').replace(/ /g, '');
+    const message = `Dear *${bill.customerName}*,\n\nThis is a friendly reminder that your newspaper bill for *${monthName} ${selectedYear}* of *₹${bill.netAmount.toFixed(2)}* is still due.\n\nPlease settle it at your earliest convenience. Thank you!\n\n- Daily News Service`;
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  };
+
   // Export tables to raw CSV
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     const monthName = monthNames[selectedMonth - 1];
-    
-    let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'Invoice Month,Customer Name,Flat Number,Location Address,Subscribed Papers,Delivered Days,Skipped Days,Gross Total (INR),Deductions (INR),Net Bill Amount (INR),Payment Status\n';
+
+    let csvContent = 'Invoice Month,Customer Name,Flat Number,Location Address,Subscribed Papers,Delivered Days,Skipped Days,Gross Total (INR),Deductions (INR),Net Bill Amount (INR),Payment Status\n';
+
+    const csvEscape = (value: string) => `"${value.replace(/"/g, '""')}"`;
 
     filteredSummaries.forEach((bill) => {
       const papersStr = bill.subscribedPapers.map(p => p.paperName).join(' | ');
@@ -133,11 +157,11 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
       const cleanLocation = bill.locationPath.replace(/➔/g, '>');
 
       const row = [
-        `"${monthName} ${selectedYear}"`,
-        `"${bill.customerName}"`,
-        `"${bill.flatNumber}"`,
-        `"${cleanLocation}"`,
-        `"${papersStr}"`,
+        csvEscape(`${monthName} ${selectedYear}`),
+        csvEscape(bill.customerName),
+        csvEscape(bill.flatNumber),
+        csvEscape(cleanLocation),
+        csvEscape(papersStr),
         bill.totalDelivered,
         bill.totalSkipped,
         bill.grossAmount.toFixed(2),
@@ -149,13 +173,16 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
       csvContent += row + '\n';
     });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Newspaper_Billing_Report_${monthName}_${selectedYear}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const result = await shareOrDownloadFile(
+      csvContent,
+      `Newspaper_Billing_Report_${monthName}_${selectedYear}.csv`,
+      'text/csv',
+      `Billing Report - ${monthName} ${selectedYear}`
+    );
+    if (result === 'failed') {
+      setExportFailed(true);
+      setTimeout(() => setExportFailed(false), 2500);
+    }
   };
 
   const monthNames = [
@@ -206,13 +233,27 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={handleExportCSV}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer self-start md:self-auto"
-        >
-          <Download size={14} />
-          <span>Export CSV Report</span>
-        </button>
+        <div className="flex items-center gap-2 self-start md:self-auto">
+          <button
+            onClick={() => setShowReminderModal(true)}
+            disabled={unpaidSummaries.length === 0}
+            className="bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-400 text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <MessageCircleWarning size={14} />
+            <span>Send Reminders ({unpaidSummaries.length})</span>
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className={`text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer ${
+              exportFailed
+                ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }`}
+          >
+            {exportFailed ? <AlertTriangle size={14} /> : <Download size={14} />}
+            <span>{exportFailed ? 'Export Failed' : 'Export CSV Report'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Summary Stats Cards */}
@@ -253,18 +294,18 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-850 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4">Flat No</th>
-                <th className="py-3 px-4">Customer Name</th>
-                <th className="py-3 px-4">Location Details</th>
-                <th className="py-3 px-4">Papers</th>
-                <th className="py-3 px-4 text-center">Drops/Skips</th>
-                <th className="py-3 px-4 text-right">Net Bill</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-center">Actions</th>
+              <tr className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-850 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <th className="py-3 px-4 bg-slate-50 dark:bg-slate-850">Flat No</th>
+                <th className="py-3 px-4 bg-slate-50 dark:bg-slate-850">Customer Name</th>
+                <th className="py-3 px-4 bg-slate-50 dark:bg-slate-850">Location Details</th>
+                <th className="py-3 px-4 bg-slate-50 dark:bg-slate-850">Papers</th>
+                <th className="py-3 px-4 text-center bg-slate-50 dark:bg-slate-850">Drops/Skips</th>
+                <th className="py-3 px-4 text-right bg-slate-50 dark:bg-slate-850">Net Bill</th>
+                <th className="py-3 px-4 text-center bg-slate-50 dark:bg-slate-850">Status</th>
+                <th className="py-3 px-4 text-center bg-slate-50 dark:bg-slate-850">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
@@ -371,6 +412,50 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
                   <span>{isUpdatingPayment ? 'Updating...' : 'Confirm'}</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Payment Reminder Dispatch Modal */}
+      {showReminderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-100 dark:bg-rose-950/40 rounded-xl">
+                  <MessageCircleWarning className="text-rose-600 dark:text-rose-400" size={20} />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">Bulk Payment Reminders</h4>
+              </div>
+              <button
+                onClick={() => setShowReminderModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Click "Send" to open a prefilled WhatsApp reminder for each unpaid customer below. Browsers block sending
+                all of these at once, so send them one at a time.
+              </p>
+              {unpaidSummaries.map(bill => (
+                <div key={bill.flatId} className="flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 rounded-xl px-3.5 py-2.5">
+                  <div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{bill.customerName} <span className="text-slate-400 font-medium">• Flat {bill.flatNumber}</span></p>
+                    <p className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">₹{bill.netAmount.toFixed(2)} due</p>
+                  </div>
+                  <a
+                    href={buildReminderWhatsAppUrl(bill)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <Send size={11} />
+                    <span>Send</span>
+                  </a>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -9,6 +9,21 @@ export interface DatabaseState {
   subscriptions: Subscription[];
   agents: DeliveryAgent[];
   deliveryLogs: DeliveryLog[];
+  // Manual admin overrides of the seed-computed paid/unpaid status, keyed by getPaymentOverrideKey()
+  paymentOverrides: Record<string, 'PAID' | 'UNPAID'>;
+}
+
+// Shared key format so every consumer (App, DashboardStats, BillingEngine) agrees on lookup
+export function getPaymentOverrideKey(flatId: string, month: number, year: number): string {
+  return `${flatId}_${month}_${year}`;
+}
+
+// Resolves a bill's paid status, respecting any manual override
+export function resolvePaidStatus(bill: BillingSummary, state: DatabaseState): boolean {
+  const override = state.paymentOverrides[getPaymentOverrideKey(bill.flatId, bill.month, bill.year)];
+  if (override === 'PAID') return true;
+  if (override === 'UNPAID') return false;
+  return bill.paid;
 }
 
 export function generateInitialData(): DatabaseState {
@@ -54,8 +69,14 @@ export function generateInitialData(): DatabaseState {
         const nameIdx = Math.floor((id.charCodeAt(id.length - 1) + flatCounter) % firstNames.length);
         const surnameIdx = Math.floor((flatCounter * 3) % lastNames.length);
         const customerName = `${firstNames[nameIdx]} ${lastNames[surnameIdx]}`;
-        const phoneSuffix = Math.floor(10000000 + Math.random() * 90000000);
-        const phoneNumber = `+91 9${phoneSuffix}`;
+        // BUG FIX: valid Indian mobile numbers are 10 digits starting with 6-9 - this
+        // used to generate "9" + 8 digits (9 digits total), an invalid number that made
+        // WhatsApp's wa.me links fail to resolve to a specific chat for every seeded flat.
+        const firstDigit = [6, 7, 8, 9][Math.floor(Math.random() * 4)];
+        const restDigits = Math.floor(100000000 + Math.random() * 900000000);
+        // Flat f_1 gets a real, tester-controlled number so WhatsApp share/reminder
+        // testing has somewhere real to land instead of a randomly generated one.
+        const phoneNumber = id === 'f_1' ? '+91 7417170811' : `+91 ${firstDigit}${restDigits}`;
 
         flats.push({
           id,
@@ -158,7 +179,28 @@ export function generateInitialData(): DatabaseState {
     subscriptions,
     agents,
     deliveryLogs,
+    paymentOverrides: {},
   };
+}
+
+// Delivery logs are looked up per flat/paper/day inside calculateBill's nested loops.
+// A linear .find() over thousands of records there gets called repeatedly (once per
+// day, per paper, per flat, per rendered month) and dominates render time. Index them
+// into a Map keyed by "flatId|paperId|date" for O(1) lookups. The index is cached in a
+// WeakMap keyed by the deliveryLogs array reference, so it's only rebuilt when the logs
+// actually change (e.g. after a delivery status edit), not on every calculateBill call.
+const deliveryLogIndexCache = new WeakMap<DeliveryLog[], Map<string, DeliveryLog>>();
+
+export function getDeliveryLogIndex(deliveryLogs: DeliveryLog[]): Map<string, DeliveryLog> {
+  let index = deliveryLogIndexCache.get(deliveryLogs);
+  if (!index) {
+    index = new Map();
+    for (const log of deliveryLogs) {
+      index.set(`${log.flatId}|${log.paperId}|${log.date}`, log);
+    }
+    deliveryLogIndexCache.set(deliveryLogs, index);
+  }
+  return index;
 }
 
 export function calculateBill(
@@ -168,6 +210,7 @@ export function calculateBill(
   state: DatabaseState
 ): BillingSummary {
   const { papers, subscriptions, deliveryLogs, wings, buildings, areas } = state;
+  const logIndex = getDeliveryLogIndex(deliveryLogs);
 
   // Find geographic hierarchy path
   const wing = wings.find((w) => w.id === flat.wingId);
@@ -177,8 +220,6 @@ export function calculateBill(
 
   // Find subscribed papers for this flat
   const flatSubs = subscriptions.filter((s) => s.flatId === flat.id && s.active);
-  const activePaperIds = flatSubs.map((s) => s.paperId);
-  const flatPapers = papers.filter((p) => activePaperIds.includes(p.id));
 
   // Get date range for target month
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -199,9 +240,7 @@ export function calculateBill(
       if (sub.fromDate && dateStr < sub.fromDate) continue;
       if (sub.toDate && dateStr > sub.toDate) continue;
 
-      const log = deliveryLogs.find(
-        (l) => l.flatId === flat.id && l.paperId === paper.id && l.date === dateStr
-      );
+      const log = logIndex.get(`${flat.id}|${paper.id}|${dateStr}`);
 
       if (log) {
         if (log.status === 'DELIVERED') {

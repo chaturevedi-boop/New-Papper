@@ -1,28 +1,35 @@
 import React, { useState, useMemo } from 'react';
-import { kotlinCodeBase, CodeFile } from '../data/kotlinCode';
-import { 
-  Code, 
-  Copy, 
-  Check, 
-  Search, 
-  Smartphone, 
+import { kotlinCodeBase } from '../data/kotlinCode';
+import {
+  Code,
+  Copy,
+  Check,
+  Search,
+  Smartphone,
   Info,
-  Server,
   FileCode,
-  ArrowRight
+  AlertTriangle
 } from 'lucide-react';
 
 export const ArchitectHub: React.FC = () => {
   const [activeFileIdx, setActiveFileIdx] = useState<number>(0);
   const [copied, setCopied] = useState<boolean>(false);
+  const [copyFailed, setCopyFailed] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const activeFile = kotlinCodeBase[activeFileIdx];
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(activeFile.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(activeFile.content).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+      () => {
+        setCopyFailed(true);
+        setTimeout(() => setCopyFailed(false), 2000);
+      }
+    );
   };
 
   // Simple Kotlin syntax highlighter simulator for premium visual style
@@ -211,6 +218,11 @@ export const ArchitectHub: React.FC = () => {
                 <>
                   <Check size={13} className="text-emerald-400 animate-bounce" />
                   <span className="text-emerald-400">Copied!</span>
+                </>
+              ) : copyFailed ? (
+                <>
+                  <AlertTriangle size={13} className="text-rose-400" />
+                  <span className="text-rose-400">Copy Failed</span>
                 </>
               ) : (
                 <>

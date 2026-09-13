@@ -1,37 +1,52 @@
 import React, { useState, useMemo } from 'react';
-import { DatabaseState } from '../data/dummyGenerator';
-import { Area, Building, Flat, Paper, DeliveryLog } from '../types';
-import { 
-  Check, 
-  Ban, 
-  Calendar, 
-  User, 
-  Phone, 
-  Building2, 
+import { DatabaseState, getDeliveryLogIndex } from '../data/dummyGenerator';
+import { Flat } from '../types';
+import { RouteSheetModal } from './RouteSheetModal';
+import {
+  Calendar,
+  User,
+  Phone,
+  Building2,
   SlidersHorizontal,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Plane,
+  Map
 } from 'lucide-react';
 
 interface DeliveryListProps {
   state: DatabaseState;
   onUpdateDeliveryStatus: (flatId: string, paperId: string, date: string, status: 'DELIVERED' | 'SKIPPED') => void;
+  onBulkUpdateDeliveryStatus: (flatId: string, paperIds: string[], fromDate: string, toDate: string, status: 'DELIVERED' | 'SKIPPED') => void;
   selectedMonth: number;
   selectedYear: number;
 }
 
-export const DeliveryList: React.FC<DeliveryListProps> = ({ 
-  state, 
+export const DeliveryList: React.FC<DeliveryListProps> = ({
+  state,
   onUpdateDeliveryStatus,
+  onBulkUpdateDeliveryStatus,
   selectedMonth,
   selectedYear
 }) => {
   const { areas, buildings, wings, flats, papers, subscriptions, deliveryLogs, agents } = state;
+  const deliveryLogIndex = useMemo(() => getDeliveryLogIndex(deliveryLogs), [deliveryLogs]);
 
   // Selected filters
   const [selectedAreaId, setSelectedAreaId] = useState<string>(areas[0]?.id || '');
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('ALL');
   const [expandedFlatId, setExpandedFlatId] = useState<string | null>(null);
+  const [showRouteSheet, setShowRouteSheet] = useState(false);
+
+  // Vacation-mode bulk skip/deliver date range, scoped to whichever flat is currently expanded
+  const [vacationFrom, setVacationFrom] = useState('');
+  const [vacationTo, setVacationTo] = useState('');
+
+  const handleToggleExpand = (flatId: string) => {
+    setExpandedFlatId(prev => (prev === flatId ? null : flatId));
+    setVacationFrom('');
+    setVacationTo('');
+  };
 
   // Available buildings based on selected area
   const filteredBuildings = useMemo(() => {
@@ -103,6 +118,10 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
     return list;
   }, [selectedMonth, selectedYear]);
 
+  // Local calendar date (not UTC) - toISOString() would shift the date in timezones ahead of UTC
+  const today = new Date();
+  const todayLocalDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
   return (
     <div className="space-y-6" id="delivery-tab-container">
       {/* 4-Tier Filtering Panel */}
@@ -113,9 +132,19 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
             <h3 className="text-md font-bold tracking-tight">Cascaded Location Filters (Smart Drops)</h3>
           </div>
           {activeAgent && (
-            <div className="flex items-center gap-2 text-xs bg-slate-800 text-slate-300 px-3 py-1.5 rounded-full border border-slate-700">
-              <User size={13} className="text-emerald-400" />
-              <span>Agent: <strong>{activeAgent.name}</strong> ({activeAgent.phone})</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-xs bg-slate-800 text-slate-300 px-3 py-1.5 rounded-full border border-slate-700">
+                <User size={13} className="text-emerald-400" />
+                <span>Agent: <strong>{activeAgent.name}</strong> ({activeAgent.phone})</span>
+              </div>
+              <button
+                onClick={() => setShowRouteSheet(true)}
+                className="flex items-center gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                title="View & print this agent's delivery route sheet"
+              >
+                <Map size={13} />
+                <span>Route Sheet</span>
+              </button>
             </div>
           )}
         </div>
@@ -182,9 +211,6 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                   const flatSubs = subscriptions.filter(s => s.flatId === flat.id && s.active);
                   const activePapers = papers.filter(p => flatSubs.some(s => s.paperId === p.id));
 
-                  // Delivery log status counts for today
-                  const today = new Date().toISOString().slice(0, 10); // current date simulation
-                  
                   return (
                     <div 
                       key={flat.id} 
@@ -223,7 +249,7 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                         {/* Ergonomic Quick Delivery Actions */}
                         <div className="flex items-center gap-2 self-end sm:self-center">
                           <button
-                            onClick={() => setExpandedFlatId(isExpanded ? null : flat.id)}
+                            onClick={() => handleToggleExpand(flat.id)}
                             className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1 text-xs"
                             title="View Skip Calendar / Monthly Logs"
                           >
@@ -256,6 +282,48 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                             </div>
                           </div>
 
+                          {/* Vacation Mode: bulk-apply a status across a date range for all this flat's papers */}
+                          <div className="bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800 rounded-xl p-3 mb-4 flex flex-wrap items-end gap-3">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 mr-1">
+                              <Plane size={14} className="text-emerald-500" />
+                              Vacation Mode
+                            </div>
+                            <div>
+                              <label htmlFor={`vacation-from-${flat.id}`} className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">From</label>
+                              <input
+                                id={`vacation-from-${flat.id}`}
+                                type="date"
+                                value={vacationFrom}
+                                onChange={(e) => setVacationFrom(e.target.value)}
+                                className="text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:text-slate-100"
+                              />
+                            </div>
+                            <div>
+                              <label htmlFor={`vacation-to-${flat.id}`} className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">To</label>
+                              <input
+                                id={`vacation-to-${flat.id}`}
+                                type="date"
+                                value={vacationTo}
+                                onChange={(e) => setVacationTo(e.target.value)}
+                                className="text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:text-slate-100"
+                              />
+                            </div>
+                            <button
+                              disabled={!vacationFrom || !vacationTo || vacationFrom > vacationTo || activePapers.length === 0}
+                              onClick={() => onBulkUpdateDeliveryStatus(flat.id, activePapers.map(p => p.id), vacationFrom, vacationTo, 'SKIPPED')}
+                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                            >
+                              Mark All Skipped
+                            </button>
+                            <button
+                              disabled={!vacationFrom || !vacationTo || vacationFrom > vacationTo || activePapers.length === 0}
+                              onClick={() => onBulkUpdateDeliveryStatus(flat.id, activePapers.map(p => p.id), vacationFrom, vacationTo, 'DELIVERED')}
+                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                            >
+                              Mark All Delivered
+                            </button>
+                          </div>
+
                           {/* Paper selector for log entry */}
                           {activePapers.map(paper => {
                             return (
@@ -270,9 +338,7 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                                 <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
                                   {calendarDays.map((date) => {
                                     const dayNum = date.split('-')[2];
-                                    const log = deliveryLogs.find(
-                                      l => l.flatId === flat.id && l.paperId === paper.id && l.date === date
-                                    );
+                                    const log = deliveryLogIndex.get(`${flat.id}|${paper.id}|${date}`);
                                     
                                     // Default status is 'DELIVERED' if no log entry is recorded
                                     const status = log ? log.status : 'DELIVERED';
@@ -312,6 +378,16 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
             </div>
           ))}
         </div>
+      )}
+
+      {showRouteSheet && activeAgent && (
+        <RouteSheetModal
+          state={state}
+          agent={activeAgent}
+          areaName={areas.find(a => a.id === selectedAreaId)?.name || ''}
+          initialDate={calendarDays.includes(todayLocalDateStr) ? todayLocalDateStr : calendarDays[0]}
+          onClose={() => setShowRouteSheet(false)}
+        />
       )}
     </div>
   );

@@ -38,4 +38,19 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Android 11+ (API 30+) hides all other installed apps from this app's package
+         queries unless explicitly declared here. Without this, WhatsApp/wa.me links and
+         the Web Share API's share sheet silently find zero matching apps to hand off to. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <package android:name="com.whatsapp" />
+    </queries>
 </manifest>

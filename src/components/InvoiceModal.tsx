@@ -1,17 +1,21 @@
 import React, { useState, useMemo } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { BillingSummary, DeliveryAgent } from '../types';
-import { 
-  X, 
-  Printer, 
-  Share2, 
-  Check, 
-  Smartphone, 
-  ArrowRight,
+import { shareTextAndFile, sharePdf } from '../utils/shareFile';
+import { generateInvoicePdf } from '../utils/generateInvoicePdf';
+import {
+  X,
+  Printer,
+  Share2,
+  Smartphone,
   Phone,
   FileText,
   Building,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  Eye,
+  Download
 } from 'lucide-react';
 
 interface InvoiceModalProps {
@@ -27,8 +31,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   onClose,
   onTogglePaymentStatus
 }) => {
-  const [showShareSheet, setShowShareSheet] = useState<boolean>(false);
-  const [showPdfIntent, setShowPdfIntent] = useState<boolean>(false);
+  const [shareFailed, setShareFailed] = useState<boolean>(false);
+  const [pdfFailed, setPdfFailed] = useState<boolean>(false);
+  const [showPrintPreview, setShowPrintPreview] = useState<boolean>(false);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -36,32 +41,28 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   ];
   const monthName = monthNames[bill.month - 1];
 
-  // Prefilled WhatsApp message text with rich formatting
-  const prefilledText = useMemo(() => {
+  // Short summary used for WhatsApp / native share text
+  const shareSummary = useMemo(() => {
     const cleanLocation = bill.locationPath.replace(/➔/g, '>');
-    const message = `Dear *${bill.customerName}*,\n\nYour newspaper bill statement for *${monthName} ${bill.year}* has been processed.\n\n📍 *Address*: ${cleanLocation}\n📦 *Monthly Drops*: ${bill.totalDelivered} delivered / ${bill.totalSkipped} skips\n💰 *Amount Due*: *₹${bill.netAmount.toFixed(2)}*\n🚦 *Payment Status*: *${bill.paid ? 'PAID' : 'DUE / UNPAID'}*\n\nThank you for choosing Daily News Services!`;
-    return encodeURIComponent(message);
+    return `Dear *${bill.customerName}*,\n\nYour newspaper bill statement for *${monthName} ${bill.year}* has been processed.\n\n📍 *Address*: ${cleanLocation}\n📦 *Monthly Drops*: ${bill.totalDelivered} delivered / ${bill.totalSkipped} skips\n💰 *Amount Due*: *₹${bill.netAmount.toFixed(2)}*\n🚦 *Payment Status*: *${bill.paid ? 'PAID' : 'DUE / UNPAID'}*\n\nThank you for choosing Daily News Services!`;
   }, [bill, monthName]);
 
   const cleanPhone = useMemo(() => {
-    // BUG FIX: Correctly fetch customer's phone from bill object and clean for API
     const rawPhone = bill.phoneNumber || "";
     return rawPhone.replace(/\+/g, '').replace(/ /g, '');
   }, [bill]);
 
-  // Click to open WhatsApp Web API Link
-  const whatsAppApiUrl = `https://wa.me/${cleanPhone}?text=${prefilledText}`;
+  // Plain (non target="_blank") link: inside a Capacitor Android WebView, target="_blank"
+  // is swallowed silently since the app doesn't implement onCreateWindow for new windows.
+  // A normal top-level navigation to an out-of-scope URL is instead handled by Capacitor's
+  // default WebViewClient, which launches it as a system Intent (opening WhatsApp directly).
+  const whatsAppApiUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(shareSummary)}`;
 
-  // Custom function to trigger browser printing for the invoice specifically
-  const handlePrint = () => {
-    // Hide all elements, show invoice, trigger print
-    window.print();
-  };
+  const invoiceFileName = `Invoice_INV-${bill.customerName.replace(/ /g, '_')}_${monthName}.txt`;
 
-  // Download Simulated PDF Invoice File
-  const handleDownloadSimulatedPdf = () => {
+  const invoiceTextContent = useMemo(() => {
     const divider = '========================================';
-    const content = [
+    return [
       divider,
       `      DAILY NEWS SERVICE BILL INVOICE      `,
       divider,
@@ -78,7 +79,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
       `Phone: ${agent ? agent.phone : '+91 98765 43210'}`,
       divider,
       `ITEMIZED BILLING BREAKDOWN:`,
-      ...bill.subscribedPapers.map(p => 
+      ...bill.subscribedPapers.map(p =>
         `- ${p.paperName}\n  Rate: INR ${p.rate}/day\n  Delivered: ${p.deliveredDays} days | Skipped: ${p.skippedDays} days\n  Paper Net Cost: INR ${p.cost.toFixed(2)}`
       ),
       divider,
@@ -91,11 +92,46 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
       `Year of Service: 2026.`,
       divider
     ].join('\n');
+  }, [bill, agent, monthName]);
 
+  // On native Android, @capacitor/share opens the real OS share sheet via a native
+  // intent chooser - this works regardless of whether the device's WebView itself
+  // implements the Web Share API (many don't). On web, the Web Share API is used when
+  // available. window.print() and <a download> blobs are silently no-ops inside a WebView.
+  const canNativeShare =
+    Capacitor.isNativePlatform() || (typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+
+  const handleShareInvoice = async () => {
+    setShareFailed(false);
+    const result = await shareTextAndFile(shareSummary, invoiceTextContent, invoiceFileName, `Invoice - ${bill.customerName}`);
+    if (result === 'failed') {
+      setShareFailed(true);
+      setTimeout(() => setShareFailed(false), 2500);
+    }
+  };
+
+  // Generates a real PDF (via jsPDF, pure JS - no native dependency) and saves/shares it.
+  const handleDownloadPdf = async () => {
+    setPdfFailed(false);
+    const { blob, base64 } = generateInvoicePdf(bill, agent, monthName);
+    const filename = `Invoice_${bill.customerName.replace(/ /g, '_')}_${monthName}.pdf`;
+    const result = await sharePdf(base64, blob, filename, `Invoice - ${bill.customerName}`);
+    if (result === 'failed') {
+      setPdfFailed(true);
+      setTimeout(() => setPdfFailed(false), 2500);
+    }
+  };
+
+  // Desktop-browser fallback (no Web Share API): keep the original working behavior
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadInvoiceFile = () => {
     const element = document.createElement('a');
-    const file = new Blob([content], { type: 'text/plain' });
+    const file = new Blob([invoiceTextContent], { type: 'text/plain' });
     element.href = URL.createObjectURL(file);
-    element.download = `Invoice_INV-${bill.customerName.replace(/ /g, '_')}_${monthName}.txt`;
+    element.download = invoiceFileName;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -270,36 +306,54 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
         {/* Invoice Control Buttons (Hidden in print) */}
         <div className="bg-slate-50 dark:bg-slate-850 px-6 py-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
           <div className="flex flex-wrap items-center gap-2">
-            {/* Printable Trigger */}
             <button
-              onClick={handlePrint}
+              onClick={() => setShowPrintPreview(true)}
               className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
             >
-              <Printer size={14} />
-              <span>Print A4 Bill</span>
+              <Eye size={14} />
+              <span>Preview & Print</span>
             </button>
-
-            {/* Simulated PDF download */}
-            <button
-              onClick={handleDownloadSimulatedPdf}
-              className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
-            >
-              <FileText size={14} />
-              <span>Download PDF File</span>
-            </button>
+            {canNativeShare ? (
+              /* Real OS share sheet: covers WhatsApp, Print (via a print service), Save, Email, etc. */
+              <button
+                onClick={handleShareInvoice}
+                className={`text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  shareFailed
+                    ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-900/60'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                }`}
+              >
+                {shareFailed ? <AlertTriangle size={14} /> : <Share2 size={14} />}
+                <span>{shareFailed ? 'Share Failed - Try Again' : 'Share Invoice'}</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handlePrint}
+                  className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                >
+                  <Printer size={14} />
+                  <span>Print A4 Bill</span>
+                </button>
+                <button
+                  onClick={handleDownloadInvoiceFile}
+                  className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                >
+                  <FileText size={14} />
+                  <span>Download Invoice File</span>
+                </button>
+                <a
+                  href={whatsAppApiUrl}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                >
+                  <Share2 size={14} />
+                  <span>Send via WhatsApp</span>
+                </a>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Share Menu Trigger */}
-            <button
-              onClick={() => setShowShareSheet(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-            >
-              <Share2 size={14} />
-              <span>Dispatch to WhatsApp</span>
-            </button>
-
-            {/* BUG FIX: Adding PROMINENT Dismiss Button at bottom (Tester Requirement) */}
             <button
               onClick={onClose}
               className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-widest rounded-xl px-6 py-2.5 transition-all cursor-pointer shadow-lg flex items-center gap-2"
@@ -311,98 +365,126 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
         </div>
       </div>
 
-      {/* Simulated Android Intent Share Sheet Modal */}
-      {showShareSheet && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 text-white rounded-3xl w-full max-w-sm overflow-hidden border border-slate-800 animate-fade-in">
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Smartphone size={14} className="text-emerald-400" />
-                Android System Share Sheet
+      {/* Print Preview: an in-app, always-light A4-styled rendition of the invoice.
+          window.print() doesn't work inside the Android WebView, so this lets the user
+          actually see the printable page in-app, then export it as a real PDF from here. */}
+      {showPrintPreview && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-start sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden my-4">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <Eye size={16} className="text-emerald-500" />
+                Print Preview
               </span>
-              <button 
-                onClick={() => setShowShareSheet(false)}
-                className="text-slate-400 hover:text-white bg-slate-800 p-1 rounded-lg"
+              <button
+                onClick={() => setShowPrintPreview(false)}
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors cursor-pointer"
               >
-                <X size={14} />
+                <X size={16} />
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
-              <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
-                <h5 className="text-xs font-bold text-slate-200 uppercase tracking-wide">Target Customer Mobile</h5>
-                <p className="text-xs text-emerald-400 font-mono mt-1 font-bold">{cleanPhone}</p>
-                <p className="text-[10px] text-slate-500 mt-1">Simulated Android <code>Intent.ACTION_SEND</code> dispatching payload direct to WhatsApp package.</p>
+            {/* A4 page content - deliberately plain light colors regardless of app theme */}
+            <div className="p-6 sm:p-10 space-y-6 max-h-[65vh] overflow-y-auto bg-white text-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-5">
+                <div>
+                  <h2 className="text-lg font-black text-emerald-800 uppercase tracking-wider">DAILY NEWS SERVICE</h2>
+                  <p className="text-xs text-slate-500 mt-0.5 font-semibold">Premium Newspaper Drops & Accounting</p>
+                  <p className="text-xs font-mono text-slate-500 mt-1">INV-{bill.flatId}-{bill.month}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Billing Period</span>
+                  <span className="text-xs font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg inline-block mt-1">
+                    {monthName} {bill.year}
+                  </span>
+                  <p className={`text-xs font-bold mt-2 ${bill.paid ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {bill.paid ? 'PAID / SETTLED' : 'DUE / UNPAID'}
+                  </p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                {/* 1. Send Text Summary via API Redirect */}
-                <a
-                  href={whatsAppApiUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setShowShareSheet(false)}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold p-3 rounded-xl flex items-center justify-between transition-colors shadow-sm cursor-pointer"
-                >
-                  <span className="flex items-center gap-2">
-                    <Share2 size={14} />
-                    <span>Send Prefilled Text Message</span>
-                  </span>
-                  <ArrowRight size={14} />
-                </a>
-
-                {/* 2. Simulated PDF share sheet */}
-                <button
-                  onClick={() => {
-                    setShowShareSheet(false);
-                    setShowPdfIntent(true);
-                  }}
-                  className="w-full bg-slate-800 hover:bg-slate-750 text-slate-100 text-xs font-semibold p-3 rounded-xl flex items-center justify-between transition-colors border border-slate-700 cursor-pointer"
-                >
-                  <span className="flex items-center gap-2">
-                    <FileText size={14} className="text-emerald-400" />
-                    <span>Send PDF Document Attachment</span>
-                  </span>
-                  <ArrowRight size={14} />
-                </button>
+              <div className="grid grid-cols-2 gap-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Billed To</p>
+                  <h4 className="font-bold text-slate-800 text-sm">{bill.customerName}</h4>
+                  <p className="text-xs text-slate-600 mt-1">Flat {bill.flatNumber}, {bill.locationPath.split(' ➔ ').slice(1).join(' > ')}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 font-semibold">Ph: {bill.phoneNumber}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Delivery Agent</p>
+                  <h4 className="font-bold text-slate-800 text-sm">{agent ? agent.name : 'Rohan Sharma'}</h4>
+                  <p className="text-xs text-slate-500 mt-1">Mobile: {agent ? agent.phone : '+91 98765 43210'}</p>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Simulated PDF Dispatching Screen Overlay */}
-      {showPdfIntent && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 text-slate-200 rounded-3xl w-full max-w-sm overflow-hidden border border-slate-800 animate-fade-in p-6 text-center space-y-4">
-            <div className="h-12 w-12 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
-              <CheckCircle size={28} />
-            </div>
-            
-            <div className="space-y-1">
-              <h4 className="text-sm font-bold text-white">Android PDF Dispatch Active</h4>
-              <p className="text-xs text-slate-400">
-                The print-ready A4 document: <code>invoice_{bill.customerName.replace(/ /g, '_')}.pdf</code> is processed from Cache Memory.
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="py-2.5 px-4">Newspaper</th>
+                      <th className="py-2.5 px-4 text-center">Delivered / Skipped</th>
+                      <th className="py-2.5 px-4 text-right">Rate</th>
+                      <th className="py-2.5 px-4 text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {bill.subscribedPapers.map((paper, idx) => (
+                      <tr key={idx}>
+                        <td className="py-3 px-4 font-bold text-slate-800">{paper.paperName}</td>
+                        <td className="py-3 px-4 text-center">
+                          <span className="text-emerald-700 font-bold">{paper.deliveredDays}d</span>
+                          <span className="text-slate-300 mx-1">/</span>
+                          <span className="text-rose-700 font-bold">{paper.skippedDays}s</span>
+                        </td>
+                        <td className="py-3 px-4 text-right text-slate-500 font-mono">₹{paper.rate.toFixed(2)}</td>
+                        <td className="py-3 px-4 text-right font-black text-slate-800 font-mono">₹{paper.cost.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end">
+                <div className="w-full sm:w-72 space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <div className="flex justify-between text-xs text-slate-600">
+                    <span>Gross Cost Potential:</span>
+                    <span className="font-mono font-semibold">₹{bill.grossAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-rose-700 font-semibold">
+                    <span>Skip Deductions (-):</span>
+                    <span className="font-mono">₹{bill.skipDeductions.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-slate-300 pt-2 flex justify-between text-sm text-emerald-800 font-bold">
+                    <span>Net Payable:</span>
+                    <span className="font-mono font-black">₹{bill.netAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-500 leading-relaxed border-t border-slate-200 pt-4">
+                <strong>Deductions Rule:</strong> Subscription rates are active for Calendar Year 2026. Daily skips have been logged via delivery agent drop list scans and subtracted from your gross balance. Please settle your bill balance by the 10th of this month.
               </p>
             </div>
 
-            <div className="bg-slate-950 p-3 rounded-xl text-left border border-slate-850">
-              <p className="text-[10px] font-mono text-slate-400">
-                <strong>Intent:</strong> ACTION_SEND<br />
-                <strong>Type:</strong> application/pdf<br />
-                <strong>File URI:</strong> content://com.premium.newspaper.fileprovider/.../invoice.pdf<br />
-                <strong>Package:</strong> com.whatsapp (targeted)
-              </p>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-end gap-2">
+              <button
+                onClick={handleDownloadPdf}
+                className={`text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  pdfFailed
+                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                }`}
+              >
+                {pdfFailed ? <AlertTriangle size={14} /> : <Download size={14} />}
+                <span>{pdfFailed ? 'Download Failed - Retry' : 'Download PDF'}</span>
+              </button>
+              <button
+                onClick={() => setShowPrintPreview(false)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl px-4 py-2 transition-colors cursor-pointer"
+              >
+                Close Preview
+              </button>
             </div>
-
-            <p className="text-[11px] text-slate-500">Android social share intents require native device API targets. Browser download sandbox is complete.</p>
-
-            <button
-              onClick={() => setShowPdfIntent(false)}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl transition-colors cursor-pointer"
-            >
-              Close Intent Simulator
-            </button>
           </div>
         </div>
       )}
