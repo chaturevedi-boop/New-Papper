@@ -10,24 +10,9 @@ import { DataMasters } from './components/DataMasters';
 import { HelpTab } from './components/HelpTab';
 import { InvoiceModal } from './components/InvoiceModal';
 import { FeedbackModal } from './components/FeedbackModal';
-import {
-  Smartphone,
-  Database,
-  HelpCircle,
-  Newspaper,
-  Calendar,
-  RefreshCw,
-  FileSpreadsheet,
-  Sun,
-  Moon,
-  Monitor,
-  ChevronLeft,
-  ChevronRight,
-  DownloadCloud,
-  UploadCloud,
-  MessageSquarePlus,
-  Eraser
-} from 'lucide-react';
+import { BottomNav, type TabType } from './components/BottomNav';
+import { SideNav } from './components/SideNav';
+import { Newspaper, Calendar, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -35,8 +20,6 @@ const MONTH_NAMES = [
 ];
 
 const YEAR_OPTIONS = [2024, 2025, 2026, 2027, 2028];
-
-type TabType = 'drops' | 'billing' | 'masters' | 'help';
 
 export default function App() {
   const [db, setDb] = useState<DatabaseState>(() => {
@@ -57,7 +40,7 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState<number>(6); // Default to June
   const [selectedYear, setSelectedYear] = useState<number>(2026); // Default to 2026
   const [activeTab, setActiveTab] = useState<TabType>('drops');
-  const [isTabSwitching, setIsTabSwitching] = useState(false);
+  const [isNavOpen, setIsNavOpen] = useState(false);
   const [themePreference, setThemePreference] = useTheme();
   const backupFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,14 +69,11 @@ export default function App() {
     setThemePreference(themePreference === 'light' ? 'dark' : themePreference === 'dark' ? 'system' : 'light');
   };
 
-  // Handle Tab Switch with simulated "Background Processing" Global Loader
+  // Instant tab switching - no artificial delay. A subtle fade-in on the content
+  // itself (see `animate-fade-in` below) is enough transition polish without
+  // blocking the user with a spinner on every single tap.
   const handleTabChange = (tab: TabType) => {
-    setIsTabSwitching(true);
-    // Standardized background thread processing simulation for ALL tabs (Tester Robustness)
-    setTimeout(() => {
-      setActiveTab(tab);
-      setIsTabSwitching(false);
-    }, 1000);
+    setActiveTab(tab);
   };
 
   // Modal displays
@@ -466,140 +446,51 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-200">
       
-      {/* 1. Header Navigation Bar */}
-      <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-40 px-4 sm:px-6 py-4 shadow-md">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          
-          {/* Logo & Platform details */}
+      {/* 1. Header: branding + single menu trigger for secondary/utility actions.
+          Primary navigation lives in the always-visible BottomNav instead. */}
+      <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-40 px-4 sm:px-6 py-3 shadow-md">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-extrabold shadow-inner border border-emerald-500">
               <Newspaper size={20} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-md font-black tracking-tight uppercase">Daily News Service</h1>
-                <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
-                  PRO BUILDER
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Newspaper Delivery & Billing Suite • Year 2026</p>
+              <h1 className="text-sm font-black tracking-tight uppercase leading-none">Daily News Service</h1>
+              <p className="text-[10px] text-slate-400 mt-1 font-medium">Delivery & Billing Suite</p>
             </div>
           </div>
 
-          {/* Interactive Navigation Pills & Actions */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              onClick={() => handleTabChange('drops')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'drops' 
-                  ? 'bg-emerald-600 text-white shadow-sm' 
-                  : 'text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <Smartphone size={13} />
-              <span>📦 Smart Drops</span>
-            </button>
-
-            <button
-              onClick={() => handleTabChange('billing')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'billing' 
-                  ? 'bg-emerald-600 text-white shadow-sm' 
-                  : 'text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <FileSpreadsheet size={13} />
-              <span>📊 Billing Engine</span>
-            </button>
-
-            <button
-              onClick={() => handleTabChange('masters')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'masters' 
-                  ? 'bg-emerald-600 text-white shadow-sm' 
-                  : 'text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <Database size={13} />
-              <span>⚙️ Master Ledgers</span>
-            </button>
-
-            <button
-              onClick={() => handleTabChange('help')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'help'
-                  ? 'bg-slate-800 text-emerald-400 border border-slate-700 shadow-sm'
-                  : 'text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <HelpCircle size={13} />
-              <span>❓ Help</span>
-            </button>
-
-            {/* Theme preference toggle: cycles Light -> Dark -> System */}
-            <button
-              onClick={cycleThemePreference}
-              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer ml-1"
-              title={`Theme: ${themePreference} (click to change)`}
-            >
-              {themePreference === 'light' ? <Sun size={14} /> : themePreference === 'dark' ? <Moon size={14} /> : <Monitor size={14} />}
-            </button>
-
-            {/* Backup / restore full database as JSON */}
-            <button
-              onClick={handleExportBackup}
-              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Download a JSON backup of all current data"
-            >
-              <DownloadCloud size={14} />
-            </button>
-            <button
-              onClick={handleImportBackupClick}
-              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Restore data from a JSON backup file"
-            >
-              <UploadCloud size={14} />
-            </button>
-            <input
-              ref={backupFileInputRef}
-              type="file"
-              accept="application/json"
-              onChange={handleImportBackupFile}
-              className="hidden"
-            />
-
-            {/* Reset mock database */}
-            <button
-              onClick={handleResetDatabase}
-              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Reload & Reset 500+ Dummy Logs database"
-            >
-              <RefreshCw size={14} />
-            </button>
-
-            {/* Permanently erase all data (empty state, not the demo seed) */}
-            <button
-              onClick={handleEraseAllData}
-              className="text-slate-400 hover:text-rose-400 p-2 rounded-xl hover:bg-rose-950/40 transition-colors cursor-pointer"
-              title="Erase ALL data permanently (no undo)"
-            >
-              <Eraser size={14} />
-            </button>
-
-            {/* Suggest a feature or report a bug */}
-            <button
-              onClick={() => setShowFeedbackModal(true)}
-              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Suggest a feature or report a bug"
-            >
-              <MessageSquarePlus size={14} />
-            </button>
-          </div>
+          <button
+            onClick={() => setIsNavOpen(true)}
+            className="text-slate-300 hover:text-white p-3 rounded-xl hover:bg-slate-800 transition-colors active:scale-[0.95] cursor-pointer"
+            title="Menu"
+          >
+            <MoreVertical size={22} />
+          </button>
         </div>
       </header>
 
-      {/* 2. Main Content Frame */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <SideNav
+        isOpen={isNavOpen}
+        onClose={() => setIsNavOpen(false)}
+        themePreference={themePreference}
+        onCycleTheme={cycleThemePreference}
+        onExportBackup={handleExportBackup}
+        onImportBackupClick={handleImportBackupClick}
+        onResetDatabase={handleResetDatabase}
+        onEraseAllData={handleEraseAllData}
+        onShowFeedback={() => setShowFeedbackModal(true)}
+      />
+      <input
+        ref={backupFileInputRef}
+        type="file"
+        accept="application/json"
+        onChange={handleImportBackupFile}
+        className="hidden"
+      />
+
+      {/* 2. Main Content Frame (bottom padding clears the fixed BottomNav) */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-24">
         
         {/* Statistics Bar (Hidden in Developer Tab) */}
         {activeTab !== 'help' && (
@@ -618,18 +509,18 @@ export default function App() {
               <span className="text-xs font-bold text-slate-850 dark:text-slate-200 uppercase tracking-wider">Accounting Cycle Selector:</span>
             </div>
             
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handlePrevMonth}
-                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors active:scale-[0.95] cursor-pointer"
                 title="Previous month"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={18} />
               </button>
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl px-3.5 py-2 border border-slate-200 dark:border-slate-700 cursor-pointer focus:outline-none"
+                className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm font-bold rounded-xl px-4 py-3 border border-slate-200 dark:border-slate-700 cursor-pointer focus:outline-none"
               >
                 {MONTH_NAMES.map((name, idx) => (
                   <option key={name} value={idx + 1}>
@@ -640,16 +531,16 @@ export default function App() {
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl px-3.5 py-2 border border-slate-200 dark:border-slate-700 cursor-pointer focus:outline-none"
+                className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm font-bold rounded-xl px-4 py-3 border border-slate-200 dark:border-slate-700 cursor-pointer focus:outline-none"
               >
                 {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
               <button
                 onClick={handleNextMonth}
-                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors active:scale-[0.95] cursor-pointer"
                 title="Next month"
               >
-                <ChevronRight size={14} />
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
@@ -702,21 +593,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Global Tab Switching Loader Overlay (Tester Optimized - Solid Backdrop) */}
-      {isTabSwitching && (
-        <div className="fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center animate-in fade-in duration-300">
-          <div className="flex flex-col items-center gap-6">
-            <div className="relative">
-              <RefreshCw className="text-emerald-500 animate-spin" size={48} />
-              <div className="absolute inset-0 blur-xl bg-emerald-500/20 rounded-full animate-pulse"></div>
-            </div>
-            <div className="text-center">
-              <h4 className="text-lg font-black text-white uppercase tracking-tighter">Synchronizing Data</h4>
-              <p className="text-xs text-slate-400 mt-2 font-medium">Optimizing background thread processing...</p>
-            </div>
-          </div>
-        </div>
-      )}
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
 
       {/* 3. Invoice Detail Overlay Modal */}
       {selectedInvoice && (

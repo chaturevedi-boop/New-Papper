@@ -150,11 +150,11 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             <Smartphone className="text-emerald-500" size={16} />
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Premium Invoice Statement</span>
           </div>
-          <button 
+          <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg transition-colors cursor-pointer"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 p-2.5 rounded-xl transition-colors active:scale-[0.94] cursor-pointer"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
@@ -176,7 +176,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               </span>
               <button
                 onClick={() => onTogglePaymentStatus(bill.flatId)}
-                className={`mt-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 print:bg-transparent ${
+                className={`mt-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all active:scale-[0.96] flex items-center gap-1.5 print:bg-transparent ${
                   bill.paid 
                     ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/60' 
                     : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-900/60'
@@ -308,45 +308,45 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowPrintPreview(true)}
-              className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+              className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 transition-colors active:scale-[0.96] cursor-pointer border border-slate-700"
             >
-              <Eye size={14} />
+              <Eye size={16} />
               <span>Preview & Print</span>
             </button>
             {canNativeShare ? (
               /* Real OS share sheet: covers WhatsApp, Print (via a print service), Save, Email, etc. */
               <button
                 onClick={handleShareInvoice}
-                className={`text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 transition-colors active:scale-[0.96] cursor-pointer ${
                   shareFailed
                     ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-900/60'
                     : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
                 }`}
               >
-                {shareFailed ? <AlertTriangle size={14} /> : <Share2 size={14} />}
+                {shareFailed ? <AlertTriangle size={16} /> : <Share2 size={16} />}
                 <span>{shareFailed ? 'Share Failed - Try Again' : 'Share Invoice'}</span>
               </button>
             ) : (
               <>
                 <button
                   onClick={handlePrint}
-                  className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                  className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 transition-colors active:scale-[0.96] cursor-pointer border border-slate-700"
                 >
-                  <Printer size={14} />
+                  <Printer size={16} />
                   <span>Print A4 Bill</span>
                 </button>
                 <button
                   onClick={handleDownloadInvoiceFile}
-                  className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                  className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 transition-colors active:scale-[0.96] cursor-pointer border border-slate-700"
                 >
-                  <FileText size={14} />
+                  <FileText size={16} />
                   <span>Download Invoice File</span>
                 </button>
                 <a
                   href={whatsAppApiUrl}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 transition-all active:scale-[0.96] shadow-sm cursor-pointer"
                 >
-                  <Share2 size={14} />
+                  <Share2 size={16} />
                   <span>Send via WhatsApp</span>
                 </a>
               </>
@@ -356,9 +356,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-widest rounded-xl px-6 py-2.5 transition-all cursor-pointer shadow-lg flex items-center gap-2"
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-widest rounded-xl px-6 py-3 transition-all active:scale-[0.96] cursor-pointer shadow-lg flex items-center gap-2"
             >
-              <X size={16} />
+              <X size={18} />
               <span>Close Invoice</span>
             </button>
           </div>
@@ -378,9 +378,9 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               </span>
               <button
                 onClick={() => setShowPrintPreview(false)}
-                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2.5 rounded-xl transition-colors active:scale-[0.94] cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
@@ -469,18 +469,18 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-end gap-2">
               <button
                 onClick={handleDownloadPdf}
-                className={`text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 transition-colors active:scale-[0.96] cursor-pointer ${
                   pdfFailed
                     ? 'bg-rose-50 text-rose-700 border border-rose-100'
                     : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
                 }`}
               >
-                {pdfFailed ? <AlertTriangle size={14} /> : <Download size={14} />}
+                {pdfFailed ? <AlertTriangle size={16} /> : <Download size={16} />}
                 <span>{pdfFailed ? 'Download Failed - Retry' : 'Download PDF'}</span>
               </button>
               <button
                 onClick={() => setShowPrintPreview(false)}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl px-4 py-2 transition-colors cursor-pointer"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl px-4 py-3 transition-colors active:scale-[0.96] cursor-pointer"
               >
                 Close Preview
               </button>

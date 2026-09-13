@@ -192,18 +192,18 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ state, month, ye
         {stats.map((stat, i) => {
           const Icon = stat.icon;
           return (
-            <div 
-              key={i} 
-              className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm flex items-start gap-3 transition-all hover:shadow-md"
+            <div
+              key={i}
+              className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm flex items-start gap-3.5 transition-all hover:shadow-md active:scale-[0.98]"
               id={`stat-card-${i}`}
             >
-              <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                <Icon size={20} />
+              <div className={`p-3 rounded-xl shrink-0 ${stat.bgColor}`}>
+                <Icon size={24} />
               </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-1">{stat.value}</h4>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{stat.subText}</p>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{stat.label}</p>
+                <h4 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 mt-1 truncate">{stat.value}</h4>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{stat.subText}</p>
               </div>
             </div>
           );

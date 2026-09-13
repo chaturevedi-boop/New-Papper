@@ -200,7 +200,7 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
             <select
               value={areaFilter}
               onChange={(e) => handleAreaChange(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 border border-slate-200 dark:border-slate-700 cursor-pointer focus:outline-none"
+              className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl px-3.5 py-3 border border-slate-200 dark:border-slate-700 cursor-pointer focus:outline-none"
             >
               <option value="ALL">All Areas</option>
               {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -213,7 +213,7 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
               disabled={areaFilter === 'ALL'}
               value={buildingFilter}
               onChange={(e) => setBuildingFilter(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 border border-slate-200 dark:border-slate-700 cursor-pointer focus:outline-none disabled:opacity-55"
+              className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl px-3.5 py-3 border border-slate-200 dark:border-slate-700 cursor-pointer focus:outline-none disabled:opacity-55"
             >
               <option value="ALL">All Buildings</option>
               {filteredBuildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -222,13 +222,13 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
 
           {/* Text Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
               placeholder="Search Name or Flat..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 text-xs rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-44"
+              className="pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 text-xs rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-44"
             />
           </div>
         </div>
@@ -237,20 +237,20 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
           <button
             onClick={() => setShowReminderModal(true)}
             disabled={unpaidSummaries.length === 0}
-            className="bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-400 text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-400 text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 shadow-sm transition-colors active:scale-[0.96] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <MessageCircleWarning size={14} />
+            <MessageCircleWarning size={16} />
             <span>Send Reminders ({unpaidSummaries.length})</span>
           </button>
           <button
             onClick={handleExportCSV}
-            className={`text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer ${
+            className={`text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 shadow-sm transition-colors active:scale-[0.96] cursor-pointer ${
               exportFailed
                 ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
             }`}
           >
-            {exportFailed ? <AlertTriangle size={14} /> : <Download size={14} />}
+            {exportFailed ? <AlertTriangle size={16} /> : <Download size={16} />}
             <span>{exportFailed ? 'Export Failed' : 'Export CSV Report'}</span>
           </button>
         </div>
@@ -294,88 +294,81 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
           </span>
         </div>
 
-        <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-850 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4 bg-slate-50 dark:bg-slate-850">Flat No</th>
-                <th className="py-3 px-4 bg-slate-50 dark:bg-slate-850">Customer Name</th>
-                <th className="py-3 px-4 bg-slate-50 dark:bg-slate-850">Location Details</th>
-                <th className="py-3 px-4 bg-slate-50 dark:bg-slate-850">Papers</th>
-                <th className="py-3 px-4 text-center bg-slate-50 dark:bg-slate-850">Drops/Skips</th>
-                <th className="py-3 px-4 text-right bg-slate-50 dark:bg-slate-850">Net Bill</th>
-                <th className="py-3 px-4 text-center bg-slate-50 dark:bg-slate-850">Status</th>
-                <th className="py-3 px-4 text-center bg-slate-50 dark:bg-slate-850">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-              {filteredSummaries.map((bill) => (
-                <tr 
-                  key={bill.flatId} 
-                  className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors"
-                >
-                  <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">
-                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded text-[11px]">
-                      {bill.flatNumber}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">
-                    {bill.customerName}
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 text-[11px] truncate max-w-44" title={bill.locationPath}>
-                    {bill.locationPath}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="flex flex-col gap-0.5">
+        <div className="max-h-[65vh] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+          {filteredSummaries.length === 0 ? (
+            <div className="p-10 text-center">
+              <FileSpreadsheet size={40} className="mx-auto text-slate-300 dark:text-slate-700 mb-3" />
+              <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">No invoices match your filters.</p>
+            </div>
+          ) : (
+            filteredSummaries.map((bill) => (
+              <div
+                key={bill.flatId}
+                className="p-4 sm:p-5 hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors active:scale-[0.99]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded text-[11px] font-bold shrink-0">
+                        {bill.flatNumber}
+                      </span>
+                      <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{bill.customerName}</h4>
+                    </div>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-1" title={bill.locationPath}>
+                      {bill.locationPath}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
                       {bill.subscribedPapers.map((p, idx) => (
-                        <span key={idx} className="text-[10px] text-slate-600 dark:text-slate-400 truncate max-w-40 font-medium">
-                          • {p.paperName}
+                        <span
+                          key={idx}
+                          className="text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded"
+                        >
+                          {p.paperName}
                         </span>
                       ))}
                     </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-center">
-                    <div className="text-[11px]">
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-lg font-black text-slate-800 dark:text-slate-100">₹{bill.netAmount.toFixed(2)}</p>
+                    <p className="text-[11px] mt-1 whitespace-nowrap">
                       <span className="text-emerald-600 dark:text-emerald-400 font-bold">{bill.totalDelivered}d</span>
                       <span className="text-slate-300 dark:text-slate-700 mx-1">/</span>
                       <span className="text-rose-600 dark:text-rose-400 font-bold">{bill.totalSkipped}s</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-right font-black text-slate-800 dark:text-slate-100">
-                    ₹{bill.netAmount.toFixed(2)}
-                  </td>
-                  <td className="py-3.5 px-4 text-center">
-                    <button
-                      onClick={() => handleToggleClick(bill.flatId, bill.paid)}
-                      disabled={isUpdatingPayment && confirmingFlatId === bill.flatId}
-                      className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto ${
-                        bill.paid
-                          ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/20'
-                          : 'bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30'
-                      }`}
-                      title="Click to toggle Paid/Unpaid"
-                    >
-                      {isUpdatingPayment && confirmingFlatId === bill.flatId ? (
-                        <RefreshCw size={10} className="animate-spin" />
-                      ) : (
-                        bill.paid ? <CheckCircle size={10} /> : <AlertCircle size={10} />
-                      )}
-                      <span>{bill.paid ? 'PAID' : 'UNPAID'}</span>
-                    </button>
-                  </td>
-                  <td className="py-3.5 px-4 text-center">
-                    <button
-                      onClick={() => onViewInvoice(bill)}
-                      className="text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 p-1 bg-slate-50 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer font-semibold text-[11px]"
-                    >
-                      <Eye size={13} />
-                      <span>Invoice</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 mt-3.5">
+                  <button
+                    onClick={() => handleToggleClick(bill.flatId, bill.paid)}
+                    disabled={isUpdatingPayment && confirmingFlatId === bill.flatId}
+                    className={`flex-1 min-h-[44px] rounded-xl text-xs font-bold transition-all active:scale-[0.96] cursor-pointer flex items-center justify-center gap-1.5 ${
+                      bill.paid
+                        ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/20'
+                        : 'bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30'
+                    }`}
+                    title="Click to toggle Paid/Unpaid"
+                  >
+                    {isUpdatingPayment && confirmingFlatId === bill.flatId ? (
+                      <RefreshCw size={14} className="animate-spin" />
+                    ) : bill.paid ? (
+                      <CheckCircle size={14} />
+                    ) : (
+                      <AlertCircle size={14} />
+                    )}
+                    <span>{bill.paid ? 'PAID' : 'UNPAID'}</span>
+                  </button>
+                  <button
+                    onClick={() => onViewInvoice(bill)}
+                    className="flex-1 min-h-[44px] rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-400 transition-colors active:scale-[0.96] cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Eye size={14} />
+                    <span>Invoice</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -399,14 +392,14 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
                 <button
                   onClick={() => setConfirmingFlatId(null)}
                   disabled={isUpdatingPayment}
-                  className="flex-1 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-colors cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-3 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 transition-colors active:scale-[0.96] cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmToggle}
                   disabled={isUpdatingPayment}
-                  className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 py-3 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-500/20 transition-all active:scale-[0.96] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isUpdatingPayment ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                   <span>{isUpdatingPayment ? 'Updating...' : 'Confirm'}</span>
@@ -430,9 +423,9 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
               </div>
               <button
                 onClick={() => setShowReminderModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 p-2.5 rounded-xl transition-colors active:scale-[0.94] cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
@@ -449,9 +442,9 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
                   </div>
                   <a
                     href={buildReminderWhatsAppUrl(bill)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl px-4 py-2.5 flex items-center gap-1.5 shrink-0 transition-colors active:scale-[0.94] cursor-pointer"
                   >
-                    <Send size={11} />
+                    <Send size={14} />
                     <span>Send</span>
                   </a>
                 </div>

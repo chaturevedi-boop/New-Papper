@@ -37,6 +37,30 @@ interface DataMastersProps {
 
 type ActiveSubTab = 'areas' | 'buildings' | 'wings' | 'flats' | 'papers' | 'agents';
 
+// Shared edit/delete button pair used by every master-data card list below -
+// kept as one component since all six lists (areas/buildings/wings/flats/papers/agents)
+// share the identical action pattern.
+const RecordActions: React.FC<{ onEdit: () => void; onDelete: () => void; editTitle: string; deleteTitle: string }> = ({
+  onEdit, onDelete, editTitle, deleteTitle
+}) => (
+  <div className="flex items-center gap-1.5 shrink-0">
+    <button
+      onClick={onEdit}
+      title={editTitle}
+      className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-xl transition-colors active:scale-[0.92] cursor-pointer"
+    >
+      <Pencil size={16} />
+    </button>
+    <button
+      onClick={onDelete}
+      title={deleteTitle}
+      className="min-w-[44px] min-h-[44px] flex items-center justify-center text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl transition-colors active:scale-[0.92] cursor-pointer"
+    >
+      <Trash2 size={16} />
+    </button>
+  </div>
+);
+
 export const DataMasters: React.FC<DataMastersProps> = ({
   state,
   onAddArea,
@@ -440,14 +464,14 @@ export const DataMasters: React.FC<DataMastersProps> = ({
                 if (tab.key === 'flats' && !flatWingId && wings[0]) setFlatWingId(wings[0].id);
                 if (tab.key === 'agents' && !agentAreaId && areas[0]) setAgentAreaId(areas[0].id);
               }}
-              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors ${
-                isActive 
-                  ? 'bg-slate-900 dark:bg-slate-800 text-white shadow-sm' 
+              className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold flex items-center justify-between transition-colors active:scale-[0.98] ${
+                isActive
+                  ? 'bg-slate-900 dark:bg-slate-800 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
               }`}
             >
-              <span className="flex items-center gap-2">
-                <Icon size={14} className={isActive ? 'text-emerald-400' : 'text-slate-400'} />
+              <span className="flex items-center gap-2.5">
+                <Icon size={17} className={isActive ? 'text-emerald-400' : 'text-slate-400'} />
                 <span>{tab.label}</span>
               </span>
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
@@ -484,20 +508,20 @@ export const DataMasters: React.FC<DataMastersProps> = ({
 
         {/* Search within the active tab's list */}
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
             placeholder={searchPlaceholders[activeTab]}
             value={masterSearch}
             onChange={(e) => setMasterSearch(e.target.value)}
-            className="w-full sm:w-80 pl-9 pr-8 py-2 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-xs rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full sm:w-80 pl-10 pr-10 py-3 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-xs rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
           {masterSearch && (
             <button
               onClick={() => setMasterSearch('')}
-              className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           )}
         </div>
@@ -605,40 +629,25 @@ export const DataMasters: React.FC<DataMastersProps> = ({
             </form>
 
             {/* List Areas */}
-            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-850 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
-                    <th className="py-2.5 px-4">Area ID</th>
-                    <th className="py-2.5 px-4">Area Name</th>
-                    <th className="py-2.5 px-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {filteredAreas.map((a) => (
-                    <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
-                      <td className="py-2.5 px-4 font-mono text-[10px] text-slate-400">{a.id}</td>
-                      <td className="py-2.5 px-4 font-bold text-slate-800 dark:text-slate-200">{a.name}</td>
-                      <td className="py-2.5 px-4 text-center flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => startEditArea(a)}
-                          className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                          title="Edit Area"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          onClick={() => onDeleteRecord('area', a.id)}
-                          className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                          title="Delete Area (Cascades downstream!)"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredAreas.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-8">No areas found.</p>
+              ) : (
+                filteredAreas.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between gap-3 p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">{a.name}</p>
+                      <p className="font-mono text-[10px] text-slate-400 mt-0.5">{a.id}</p>
+                    </div>
+                    <RecordActions
+                      onEdit={() => startEditArea(a)}
+                      onDelete={() => onDeleteRecord('area', a.id)}
+                      editTitle="Edit Area"
+                      deleteTitle="Delete Area (Cascades downstream!)"
+                    />
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -698,45 +707,28 @@ export const DataMasters: React.FC<DataMastersProps> = ({
             </form>
 
             {/* List Buildings */}
-            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-850 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
-                    <th className="py-2.5 px-4">Building ID</th>
-                    <th className="py-2.5 px-4">Building Name</th>
-                    <th className="py-2.5 px-4">Assigned Area</th>
-                    <th className="py-2.5 px-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {filteredBuildingsList.map((b) => {
-                    const area = areas.find(a => a.id === b.areaId);
-                    return (
-                      <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
-                        <td className="py-2.5 px-4 font-mono text-[10px] text-slate-400">{b.id}</td>
-                        <td className="py-2.5 px-4 font-bold text-slate-800 dark:text-slate-200">{b.name}</td>
-                        <td className="py-2.5 px-4 text-slate-500 dark:text-slate-400">{area?.name || 'Unknown Area'}</td>
-                        <td className="py-2.5 px-4 text-center flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => startEditBuilding(b)}
-                            className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Building"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => onDeleteRecord('building', b.id)}
-                            className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Delete Building"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredBuildingsList.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-8">No buildings found.</p>
+              ) : (
+                filteredBuildingsList.map((b) => {
+                  const area = areas.find(a => a.id === b.areaId);
+                  return (
+                    <div key={b.id} className="flex items-center justify-between gap-3 p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">{b.name}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{area?.name || 'Unknown Area'}</p>
+                      </div>
+                      <RecordActions
+                        onEdit={() => startEditBuilding(b)}
+                        onDelete={() => onDeleteRecord('building', b.id)}
+                        editTitle="Edit Building"
+                        deleteTitle="Delete Building"
+                      />
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -800,45 +792,28 @@ export const DataMasters: React.FC<DataMastersProps> = ({
             </form>
 
             {/* List Wings */}
-            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-850 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
-                    <th className="py-2.5 px-4">Wing ID</th>
-                    <th className="py-2.5 px-4">Wing Name</th>
-                    <th className="py-2.5 px-4">Assigned Building</th>
-                    <th className="py-2.5 px-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {filteredWingsList.map((w) => {
-                    const building = buildings.find(b => b.id === w.buildingId);
-                    return (
-                      <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
-                        <td className="py-2.5 px-4 font-mono text-[10px] text-slate-400">{w.id}</td>
-                        <td className="py-2.5 px-4 font-bold text-slate-800 dark:text-slate-200">{w.name}</td>
-                        <td className="py-2.5 px-4 text-slate-500 dark:text-slate-400">{building?.name || 'Unknown Building'}</td>
-                        <td className="py-2.5 px-4 text-center flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => startEditWing(w)}
-                            className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Wing"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => onDeleteRecord('wing', w.id)}
-                            className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Delete Wing"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredWingsList.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-8">No wings found.</p>
+              ) : (
+                filteredWingsList.map((w) => {
+                  const building = buildings.find(b => b.id === w.buildingId);
+                  return (
+                    <div key={w.id} className="flex items-center justify-between gap-3 p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">{w.name}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{building?.name || 'Unknown Building'}</p>
+                      </div>
+                      <RecordActions
+                        onEdit={() => startEditWing(w)}
+                        onDelete={() => onDeleteRecord('wing', w.id)}
+                        editTitle="Edit Wing"
+                        deleteTitle="Delete Wing"
+                      />
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -991,59 +966,44 @@ export const DataMasters: React.FC<DataMastersProps> = ({
             </form>
 
             {/* List Flats */}
-            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden max-h-[350px] overflow-y-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-850 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800 sticky top-0">
-                    <th className="py-2.5 px-4 bg-slate-50 dark:bg-slate-850">Flat</th>
-                    <th className="py-2.5 px-4 bg-slate-50 dark:bg-slate-850">Customer Details</th>
-                    <th className="py-2.5 px-4 bg-slate-50 dark:bg-slate-850">Wing hierarchy</th>
-                    <th className="py-2.5 px-4 bg-slate-50 dark:bg-slate-850">Subscribed Papers</th>
-                    <th className="py-2.5 px-4 text-center bg-slate-50 dark:bg-slate-850">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {filteredFlatsList.map((f) => {
-                    const wing = wings.find(w => w.id === f.wingId);
-                    const b = wing ? buildings.find(bld => bld.id === wing.buildingId) : null;
-                    const a = b ? areas.find(ar => ar.id === b.areaId) : null;
-                    const subs = subscriptions.filter(s => s.flatId === f.id && s.active);
-                    const paperNames = papers.filter(p => subs.some(s => s.paperId === p.id)).map(p => p.name).join(', ');
+            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden max-h-[420px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredFlatsList.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-8">No customer flats found.</p>
+              ) : (
+                filteredFlatsList.map((f) => {
+                  const wing = wings.find(w => w.id === f.wingId);
+                  const b = wing ? buildings.find(bld => bld.id === wing.buildingId) : null;
+                  const a = b ? areas.find(ar => ar.id === b.areaId) : null;
+                  const subs = subscriptions.filter(s => s.flatId === f.id && s.active);
+                  const paperNames = papers.filter(p => subs.some(s => s.paperId === p.id)).map(p => p.name).join(', ');
 
-                    return (
-                      <tr key={f.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
-                        <td className="py-2.5 px-4 font-bold text-slate-800 dark:text-slate-200">{f.flatNumber}</td>
-                        <td className="py-2.5 px-4">
-                          <div className="font-bold text-slate-800 dark:text-slate-200">{f.customerName}</div>
-                          <div className="text-[10px] text-slate-400">{f.phoneNumber}</div>
-                        </td>
-                        <td className="py-2.5 px-4 text-slate-500 dark:text-slate-400 text-[11px]">
+                  return (
+                    <div key={f.id} className="flex items-start justify-between gap-3 p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded text-[11px] font-bold shrink-0">
+                            {f.flatNumber}
+                          </span>
+                          <p className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">{f.customerName}</p>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1">{f.phoneNumber}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                           {a?.name} {" ➔ "} {b?.name} {" ➔ "} {wing?.name}
-                        </td>
-                        <td className="py-2.5 px-4 text-slate-600 dark:text-slate-400 text-[11px] font-medium italic">
+                        </p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400 font-medium italic mt-1">
                           {paperNames || 'No papers'}
-                        </td>
-                        <td className="py-2.5 px-4 text-center flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => startEditFlat(f)}
-                            className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Customer"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => onDeleteRecord('flat', f.id)}
-                            className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Delete Customer"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </p>
+                      </div>
+                      <RecordActions
+                        onEdit={() => startEditFlat(f)}
+                        onDelete={() => onDeleteRecord('flat', f.id)}
+                        editTitle="Edit Customer"
+                        deleteTitle="Delete Customer"
+                      />
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -1103,42 +1063,25 @@ export const DataMasters: React.FC<DataMastersProps> = ({
             </form>
 
             {/* List Papers */}
-            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-850 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
-                    <th className="py-2.5 px-4">Newspaper ID</th>
-                    <th className="py-2.5 px-4">Newspaper Title</th>
-                    <th className="py-2.5 px-4 text-right">Per-Day Rate (INR)</th>
-                    <th className="py-2.5 px-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {filteredPapersList.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
-                      <td className="py-2.5 px-4 font-mono text-[10px] text-slate-400">{p.id}</td>
-                      <td className="py-2.5 px-4 font-bold text-slate-800 dark:text-slate-200">{p.name}</td>
-                      <td className="py-2.5 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">₹{p.ratePerDay.toFixed(2)}</td>
-                      <td className="py-2.5 px-4 text-center flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => startEditPaper(p)}
-                          className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                          title="Edit Newspaper"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          onClick={() => onDeleteRecord('paper', p.id)}
-                          className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                          title="Delete Newspaper"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredPapersList.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-8">No newspapers found.</p>
+              ) : (
+                filteredPapersList.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between gap-3 p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">{p.name}</p>
+                      <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">₹{p.ratePerDay.toFixed(2)} / day</p>
+                    </div>
+                    <RecordActions
+                      onEdit={() => startEditPaper(p)}
+                      onDelete={() => onDeleteRecord('paper', p.id)}
+                      editTitle="Edit Newspaper"
+                      deleteTitle="Delete Newspaper"
+                    />
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -1209,47 +1152,29 @@ export const DataMasters: React.FC<DataMastersProps> = ({
             </form>
 
             {/* List Agents */}
-            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-850 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
-                    <th className="py-2.5 px-4">Agent ID</th>
-                    <th className="py-2.5 px-4">Agent Name</th>
-                    <th className="py-2.5 px-4">Phone Contact</th>
-                    <th className="py-2.5 px-4">Assigned Area Route</th>
-                    <th className="py-2.5 px-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-                  {filteredAgentsList.map((a) => {
-                    const area = areas.find(ar => ar.id === a.assignedAreaId);
-                    return (
-                      <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
-                        <td className="py-2.5 px-4 font-mono text-[10px] text-slate-400">{a.id}</td>
-                        <td className="py-2.5 px-4 font-bold text-slate-800 dark:text-slate-200">{a.name}</td>
-                        <td className="py-2.5 px-4 text-slate-600 dark:text-slate-400">{a.phone}</td>
-                        <td className="py-2.5 px-4 text-slate-500 dark:text-slate-400 font-semibold">{area?.name || 'Floating Agent'}</td>
-                        <td className="py-2.5 px-4 text-center flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => startEditAgent(a)}
-                            className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Agent"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => onDeleteRecord('agent', a.id)}
-                            className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 p-1.5 rounded-lg transition-colors cursor-pointer"
-                            title="Unregister Agent"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredAgentsList.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-8">No delivery agents found.</p>
+              ) : (
+                filteredAgentsList.map((a) => {
+                  const area = areas.find(ar => ar.id === a.assignedAreaId);
+                  return (
+                    <div key={a.id} className="flex items-center justify-between gap-3 p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">{a.name}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{a.phone}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">{area?.name || 'Floating Agent'}</p>
+                      </div>
+                      <RecordActions
+                        onEdit={() => startEditAgent(a)}
+                        onDelete={() => onDeleteRecord('agent', a.id)}
+                        editTitle="Edit Agent"
+                        deleteTitle="Unregister Agent"
+                      />
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}

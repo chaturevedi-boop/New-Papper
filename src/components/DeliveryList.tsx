@@ -139,10 +139,10 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
               </div>
               <button
                 onClick={() => setShowRouteSheet(true)}
-                className="flex items-center gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-full transition-colors active:scale-[0.96] cursor-pointer"
                 title="View & print this agent's delivery route sheet"
               >
-                <Map size={13} />
+                <Map size={16} />
                 <span>Route Sheet</span>
               </button>
             </div>
@@ -156,7 +156,7 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
             <select
               value={selectedAreaId}
               onChange={(e) => handleAreaChange(e.target.value)}
-              className="w-full bg-slate-800 text-white text-sm rounded-xl px-4 py-2.5 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              className="w-full bg-slate-800 text-white text-sm rounded-xl px-4 py-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
             >
               {areas.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
@@ -170,7 +170,7 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
             <select
               value={selectedBuildingId}
               onChange={(e) => setSelectedBuildingId(e.target.value)}
-              className="w-full bg-slate-800 text-white text-sm rounded-xl px-4 py-2.5 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              className="w-full bg-slate-800 text-white text-sm rounded-xl px-4 py-3 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
             >
               <option value="ALL">All Buildings ({filteredBuildings.length})</option>
               {filteredBuildings.map(b => (
@@ -250,12 +250,12 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                         <div className="flex items-center gap-2 self-end sm:self-center">
                           <button
                             onClick={() => handleToggleExpand(flat.id)}
-                            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-colors flex items-center gap-1 text-xs"
+                            className="p-3 text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl transition-colors active:scale-[0.96] flex items-center gap-1.5 text-xs font-bold"
                             title="View Skip Calendar / Monthly Logs"
                           >
-                            <Calendar size={16} className="text-emerald-500" />
+                            <Calendar size={18} className="text-emerald-500" />
                             <span>Logs Calendar</span>
-                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </button>
                         </div>
                       </div>
@@ -289,36 +289,36 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                               Vacation Mode
                             </div>
                             <div>
-                              <label htmlFor={`vacation-from-${flat.id}`} className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">From</label>
+                              <label htmlFor={`vacation-from-${flat.id}`} className="block text-[10px] font-bold text-slate-400 uppercase mb-1">From</label>
                               <input
                                 id={`vacation-from-${flat.id}`}
                                 type="date"
                                 value={vacationFrom}
                                 onChange={(e) => setVacationFrom(e.target.value)}
-                                className="text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:text-slate-100"
+                                className="text-xs px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:text-slate-100"
                               />
                             </div>
                             <div>
-                              <label htmlFor={`vacation-to-${flat.id}`} className="block text-[9px] font-bold text-slate-400 uppercase mb-0.5">To</label>
+                              <label htmlFor={`vacation-to-${flat.id}`} className="block text-[10px] font-bold text-slate-400 uppercase mb-1">To</label>
                               <input
                                 id={`vacation-to-${flat.id}`}
                                 type="date"
                                 value={vacationTo}
                                 onChange={(e) => setVacationTo(e.target.value)}
-                                className="text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:text-slate-100"
+                                className="text-xs px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:text-slate-100"
                               />
                             </div>
                             <button
                               disabled={!vacationFrom || !vacationTo || vacationFrom > vacationTo || activePapers.length === 0}
                               onClick={() => onBulkUpdateDeliveryStatus(flat.id, activePapers.map(p => p.id), vacationFrom, vacationTo, 'SKIPPED')}
-                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                              className="text-xs font-bold px-4 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-[0.96] cursor-pointer"
                             >
                               Mark All Skipped
                             </button>
                             <button
                               disabled={!vacationFrom || !vacationTo || vacationFrom > vacationTo || activePapers.length === 0}
                               onClick={() => onBulkUpdateDeliveryStatus(flat.id, activePapers.map(p => p.id), vacationFrom, vacationTo, 'DELIVERED')}
-                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                              className="text-xs font-bold px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-[0.96] cursor-pointer"
                             >
                               Mark All Delivered
                             </button>
@@ -335,11 +335,11 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                                   </span>
                                 </div>
 
-                                <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+                                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                                   {calendarDays.map((date) => {
                                     const dayNum = date.split('-')[2];
                                     const log = deliveryLogIndex.get(`${flat.id}|${paper.id}|${date}`);
-                                    
+
                                     // Default status is 'DELIVERED' if no log entry is recorded
                                     const status = log ? log.status : 'DELIVERED';
                                     const isDelivered = status === 'DELIVERED';
@@ -351,15 +351,15 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                                           const nextStatus = isDelivered ? 'SKIPPED' : 'DELIVERED';
                                           onUpdateDeliveryStatus(flat.id, paper.id, date, nextStatus);
                                         }}
-                                        className={`p-2 rounded-lg text-center transition-all ${
+                                        className={`min-h-[44px] py-2 rounded-xl text-center transition-all active:scale-[0.94] ${
                                           isDelivered
                                             ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 border border-emerald-100 dark:border-emerald-900'
                                             : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-100 border border-rose-100 dark:border-rose-900/60'
                                         } flex flex-col items-center justify-center`}
                                         title={`${date}: Click to toggle`}
                                       >
-                                        <span className="text-xs font-bold">{parseInt(dayNum)}</span>
-                                        <span className="text-[8px] tracking-wider uppercase mt-0.5 font-medium opacity-80">
+                                        <span className="text-sm font-bold">{parseInt(dayNum)}</span>
+                                        <span className="text-[9px] tracking-wider uppercase mt-0.5 font-bold opacity-80">
                                           {isDelivered ? 'Drop' : 'Skip'}
                                         </span>
                                       </button>
