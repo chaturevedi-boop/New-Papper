@@ -7,13 +7,13 @@ import { DashboardStats } from './components/DashboardStats';
 import { DeliveryList } from './components/DeliveryList';
 import { BillingEngine } from './components/BillingEngine';
 import { DataMasters } from './components/DataMasters';
-import { ArchitectHub } from './components/ArchitectHub';
+import { HelpTab } from './components/HelpTab';
 import { InvoiceModal } from './components/InvoiceModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import {
   Smartphone,
   Database,
-  Code,
+  HelpCircle,
   Newspaper,
   Calendar,
   RefreshCw,
@@ -35,7 +35,7 @@ const MONTH_NAMES = [
 
 const YEAR_OPTIONS = [2024, 2025, 2026, 2027, 2028];
 
-type TabType = 'drops' | 'billing' | 'masters' | 'architect';
+type TabType = 'drops' | 'billing' | 'masters' | 'help';
 
 export default function App() {
   const [db, setDb] = useState<DatabaseState>(() => {
@@ -507,15 +507,15 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => handleTabChange('architect')}
+              onClick={() => handleTabChange('help')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'architect' 
-                  ? 'bg-slate-800 text-emerald-400 border border-slate-700 shadow-sm' 
+                activeTab === 'help'
+                  ? 'bg-slate-800 text-emerald-400 border border-slate-700 shadow-sm'
                   : 'text-slate-300 hover:bg-slate-800'
               }`}
             >
-              <Code size={13} />
-              <span>📱 Android Architect</span>
+              <HelpCircle size={13} />
+              <span>❓ Help</span>
             </button>
 
             {/* Theme preference toggle: cycles Light -> Dark -> System */}
@@ -575,7 +575,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         
         {/* Statistics Bar (Hidden in Developer Tab) */}
-        {activeTab !== 'architect' && (
+        {activeTab !== 'help' && (
           <DashboardStats 
             state={db} 
             month={selectedMonth} 
@@ -584,7 +584,7 @@ export default function App() {
         )}
 
         {/* Global Selectors Panel (Hidden in Code Explorer) */}
-        {activeTab !== 'architect' && (
+        {activeTab !== 'help' && (
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-2">
               <Calendar className="text-emerald-500" size={16} />
@@ -669,8 +669,8 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'architect' && (
-            <ArchitectHub />
+          {activeTab === 'help' && (
+            <HelpTab />
           )}
         </div>
       </main>
