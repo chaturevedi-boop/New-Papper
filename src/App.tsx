@@ -9,6 +9,7 @@ import { BillingEngine } from './components/BillingEngine';
 import { DataMasters } from './components/DataMasters';
 import { ArchitectHub } from './components/ArchitectHub';
 import { InvoiceModal } from './components/InvoiceModal';
+import { FeedbackModal } from './components/FeedbackModal';
 import {
   Smartphone,
   Database,
@@ -23,7 +24,8 @@ import {
   ChevronLeft,
   ChevronRight,
   DownloadCloud,
-  UploadCloud
+  UploadCloud,
+  MessageSquarePlus
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -95,6 +97,7 @@ export default function App() {
 
   // Modal displays
   const [selectedInvoice, setSelectedInvoice] = useState<BillingSummary | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   // Sync to local storage
   useEffect(() => {
@@ -555,6 +558,15 @@ export default function App() {
             >
               <RefreshCw size={14} />
             </button>
+
+            {/* Suggest a feature or report a bug */}
+            <button
+              onClick={() => setShowFeedbackModal(true)}
+              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Suggest a feature or report a bug"
+            >
+              <MessageSquarePlus size={14} />
+            </button>
           </div>
         </div>
       </header>
@@ -688,6 +700,9 @@ export default function App() {
           onTogglePaymentStatus={handleTogglePaymentStatus}
         />
       )}
+
+      {/* 4. Feedback / Feature Request Modal */}
+      {showFeedbackModal && <FeedbackModal onClose={() => setShowFeedbackModal(false)} />}
     </div>
   );
 }
