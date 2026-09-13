@@ -41,9 +41,9 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({ isExpired, daysRemai
     }
   };
 
-  const requestMessage = `Hi, my Daily News Service free trial ${isExpired ? 'has ended' : `has ${daysRemaining} day(s) left`} and I'd like a license key (1 year / 5 years / lifetime).`;
+  const requestMessage = `Hi, my PaperTrack free trial ${isExpired ? 'has ended' : `has ${daysRemaining} day(s) left`} and I'd like a license key (1 year / 5 years / lifetime).`;
   const whatsAppUrl = `https://wa.me/${CONTACT_WHATSAPP_NUMBER}?text=${encodeURIComponent(requestMessage)}`;
-  const mailtoUrl = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Daily News Service - License Key Request')}&body=${encodeURIComponent(requestMessage)}`;
+  const mailtoUrl = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('PaperTrack - License Key Request')}&body=${encodeURIComponent(requestMessage)}`;
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">

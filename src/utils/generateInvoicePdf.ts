@@ -26,7 +26,7 @@ export function generateInvoicePdf(bill: BillingSummary, agent: DeliveryAgent | 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(6, 95, 70); // emerald-800
-  doc.text('DAILY NEWS SERVICE', marginX, y);
+  doc.text('PAPERTRACK', marginX, y);
   y += 6;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);

@@ -23,12 +23,12 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
 
   const buildWhatsAppUrl = () => {
     const emojiLabel = type === 'BUG' ? '🐞 Bug Report' : '💡 Feature Request';
-    const message = `${emojiLabel} — Daily News Service App\n\n${description.trim()}`;
+    const message = `${emojiLabel} — PaperTrack App\n\n${description.trim()}`;
     return `https://wa.me/${FEEDBACK_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
   };
 
   const buildMailtoUrl = () => {
-    const subject = `${label} — Daily News Service App`;
+    const subject = `${label} — PaperTrack App`;
     return `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(description.trim())}`;
   };
 

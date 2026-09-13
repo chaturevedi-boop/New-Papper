@@ -1,4 +1,4 @@
-package com.dailynewsservice.app;
+package com.papertrack.app;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -135,7 +135,7 @@ export const BillingEngine: React.FC<BillingEngineProps> = ({
   const buildReminderWhatsAppUrl = (bill: BillingSummary) => {
     const monthName = monthNames[selectedMonth - 1];
     const cleanPhone = (bill.phoneNumber || '').replace(/\+/g, '').replace(/ /g, '');
-    const message = `Dear *${bill.customerName}*,\n\nThis is a friendly reminder that your newspaper bill for *${monthName} ${selectedYear}* of *₹${bill.netAmount.toFixed(2)}* is still due.\n\nPlease settle it at your earliest convenience. Thank you!\n\n- Daily News Service`;
+    const message = `Dear *${bill.customerName}*,\n\nThis is a friendly reminder that your newspaper bill for *${monthName} ${selectedYear}* of *₹${bill.netAmount.toFixed(2)}* is still due.\n\nPlease settle it at your earliest convenience. Thank you!\n\n- PaperTrack`;
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 

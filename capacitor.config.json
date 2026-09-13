@@ -1,6 +1,6 @@
 {
-  "appId": "com.dailynewsservice.app",
-  "appName": "Daily News Service",
+  "appId": "com.papertrack.app",
+  "appName": "PaperTrack",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"

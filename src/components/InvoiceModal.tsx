@@ -44,7 +44,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   // Short summary used for WhatsApp / native share text
   const shareSummary = useMemo(() => {
     const cleanLocation = bill.locationPath.replace(/➔/g, '>');
-    return `Dear *${bill.customerName}*,\n\nYour newspaper bill statement for *${monthName} ${bill.year}* has been processed.\n\n📍 *Address*: ${cleanLocation}\n📦 *Monthly Drops*: ${bill.totalDelivered} delivered / ${bill.totalSkipped} skips\n💰 *Amount Due*: *₹${bill.netAmount.toFixed(2)}*\n🚦 *Payment Status*: *${bill.paid ? 'PAID' : 'DUE / UNPAID'}*\n\nThank you for choosing Daily News Services!`;
+    return `Dear *${bill.customerName}*,\n\nYour newspaper bill statement for *${monthName} ${bill.year}* has been processed.\n\n📍 *Address*: ${cleanLocation}\n📦 *Monthly Drops*: ${bill.totalDelivered} delivered / ${bill.totalSkipped} skips\n💰 *Amount Due*: *₹${bill.netAmount.toFixed(2)}*\n🚦 *Payment Status*: *${bill.paid ? 'PAID' : 'DUE / UNPAID'}*\n\nThank you for choosing PaperTrack!`;
   }, [bill, monthName]);
 
   const cleanPhone = useMemo(() => {
@@ -64,7 +64,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
     const divider = '========================================';
     return [
       divider,
-      `      DAILY NEWS SERVICE BILL INVOICE      `,
+      `      PAPERTRACK BILL INVOICE      `,
       divider,
       `Statement Period: ${monthName} ${bill.year}`,
       `Invoice ID: INV-${bill.flatId}-${bill.month}`,
@@ -163,7 +163,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
           {/* Header Block */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
             <div>
-              <h2 className="text-lg font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">DAILY NEWS SERVICE</h2>
+              <h2 className="text-lg font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">PAPERTRACK</h2>
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-semibold">Premium Newspaper Drops & Accounting</p>
               <p className="text-xs font-mono text-slate-400 dark:text-slate-500 mt-1">INV-{bill.flatId}-{bill.month}</p>
             </div>
@@ -388,7 +388,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
             <div className="p-6 sm:p-10 space-y-6 max-h-[65vh] overflow-y-auto bg-white text-slate-900">
               <div className="flex items-center justify-between border-b border-slate-200 pb-5">
                 <div>
-                  <h2 className="text-lg font-black text-emerald-800 uppercase tracking-wider">DAILY NEWS SERVICE</h2>
+                  <h2 className="text-lg font-black text-emerald-800 uppercase tracking-wider">PAPERTRACK</h2>
                   <p className="text-xs text-slate-500 mt-0.5 font-semibold">Premium Newspaper Drops & Accounting</p>
                   <p className="text-xs font-mono text-slate-500 mt-1">INV-{bill.flatId}-{bill.month}</p>
                 </div>

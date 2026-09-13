@@ -95,7 +95,7 @@ export const SideNav: React.FC<SideNavProps> = ({
               <Newspaper size={18} />
             </div>
             <div>
-              <p className="text-sm font-black text-white uppercase tracking-tight">Daily News Service</p>
+              <p className="text-sm font-black text-white uppercase tracking-tight">PaperTrack</p>
               <p className="text-[10px] text-slate-500 font-medium">Settings & Tools</p>
             </div>
           </div>

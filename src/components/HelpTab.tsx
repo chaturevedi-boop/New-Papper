@@ -40,7 +40,7 @@ export const HelpTab: React.FC = () => {
           <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase mb-3">
             <HelpCircle size={12} /> Help & Project Summary
           </div>
-          <h3 className="text-xl font-black tracking-tight">Daily News Service — Development & QA Summary</h3>
+          <h3 className="text-xl font-black tracking-tight">PaperTrack — Development & QA Summary</h3>
           <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
             Newspaper Delivery &amp; Billing Suite for managing routes, subscriptions, and monthly billing across a
             four-tier location hierarchy (Area → Building → Wing → Flat). This tab is the in-app record of what was

@@ -136,7 +136,7 @@ export default function App() {
   // Share or download the entire current database state as a JSON backup file
   const handleExportBackup = async () => {
     const filename = `daily-news-service-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    const result = await shareOrDownloadFile(JSON.stringify(db, null, 2), filename, 'application/json', 'Daily News Service Backup');
+    const result = await shareOrDownloadFile(JSON.stringify(db, null, 2), filename, 'application/json', 'PaperTrack Backup');
     if (result === 'failed') {
       window.alert('Could not export the backup file on this device.');
     }
@@ -159,7 +159,7 @@ export default function App() {
         const requiredKeys: (keyof DatabaseState)[] = ['areas', 'buildings', 'wings', 'flats', 'papers', 'subscriptions', 'agents', 'deliveryLogs'];
         const isValid = requiredKeys.every(key => Array.isArray(parsed[key]));
         if (!isValid) {
-          window.alert('This file does not look like a valid Daily News Service backup.');
+          window.alert('This file does not look like a valid PaperTrack backup.');
           return;
         }
         if (window.confirm('Restoring this backup will replace all current data. Continue?')) {
@@ -477,7 +477,7 @@ export default function App() {
               <Newspaper size={20} />
             </div>
             <div>
-              <h1 className="text-sm font-black tracking-tight uppercase leading-none">Daily News Service</h1>
+              <h1 className="text-sm font-black tracking-tight uppercase leading-none">PaperTrack</h1>
               <p className="text-[10px] text-slate-400 mt-1 font-medium">Delivery & Billing Suite</p>
             </div>
           </div>

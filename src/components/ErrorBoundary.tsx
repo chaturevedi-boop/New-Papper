@@ -17,7 +17,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('Unhandled error in Daily News Service:', error, info.componentStack);
+    console.error('Unhandled error in PaperTrack:', error, info.componentStack);
   }
 
   handleReload = () => {
