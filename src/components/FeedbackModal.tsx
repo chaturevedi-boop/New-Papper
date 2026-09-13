@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { MessageSquarePlus, X, Bug, Lightbulb, Send } from 'lucide-react';
+import { MessageSquarePlus, X, Bug, Lightbulb, Send, Mail } from 'lucide-react';
 
-// Where feature requests / bug reports get sent. Reuses the exact same plain wa.me link
-// pattern (no target="_blank") already proven to work reliably inside the Android WebView,
-// covered by the app's existing <queries> manifest declaration.
+// Where feature requests / bug reports get sent. The WhatsApp link reuses the exact same
+// plain wa.me pattern (no target="_blank") already proven to work reliably inside the
+// Android WebView, covered by the app's existing <queries> manifest declaration. The
+// mailto: link needs no such workaround - it's handled by Android's default out-of-scope
+// URL handling the same way.
 const FEEDBACK_WHATSAPP_NUMBER = '917417170811';
+const FEEDBACK_EMAIL = 'chaturevedi@gmail.com';
 
 interface FeedbackModalProps {
   onClose: () => void;
@@ -16,10 +19,17 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
   const [type, setType] = useState<FeedbackType>('FEATURE');
   const [description, setDescription] = useState('');
 
+  const label = type === 'BUG' ? 'Bug Report' : 'Feature Request';
+
   const buildWhatsAppUrl = () => {
-    const label = type === 'BUG' ? '🐞 Bug Report' : '💡 Feature Request';
-    const message = `${label} — Daily News Service App\n\n${description.trim()}`;
+    const emojiLabel = type === 'BUG' ? '🐞 Bug Report' : '💡 Feature Request';
+    const message = `${emojiLabel} — Daily News Service App\n\n${description.trim()}`;
     return `https://wa.me/${FEEDBACK_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  };
+
+  const buildMailtoUrl = () => {
+    const subject = `${label} — Daily News Service App`;
+    return `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(description.trim())}`;
   };
 
   const canSubmit = description.trim().length > 0;
@@ -42,7 +52,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
 
         <div className="p-6 space-y-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            This opens WhatsApp with your message pre-filled — just hit Send there and it reaches the developer directly.
+            Choose Email or WhatsApp below — it opens with your message pre-filled, just hit Send there and it reaches the developer directly.
           </p>
 
           <div>
@@ -84,7 +94,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
           </div>
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-850 px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+        <div className="bg-slate-50 dark:bg-slate-850 px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-end gap-2">
           <button
             onClick={onClose}
             className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 text-xs font-semibold rounded-xl px-4 py-2 transition-colors cursor-pointer"
@@ -92,19 +102,35 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
             Cancel
           </button>
           {canSubmit ? (
-            <a
-              href={buildWhatsAppUrl()}
-              onClick={onClose}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
-            >
-              <Send size={13} />
-              <span>Send via WhatsApp</span>
-            </a>
+            <>
+              <a
+                href={buildMailtoUrl()}
+                onClick={onClose}
+                className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+              >
+                <Mail size={13} />
+                <span>Send via Email</span>
+              </a>
+              <a
+                href={buildWhatsAppUrl()}
+                onClick={onClose}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+              >
+                <Send size={13} />
+                <span>Send via WhatsApp</span>
+              </a>
+            </>
           ) : (
-            <span className="bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 cursor-not-allowed">
-              <Send size={13} />
-              <span>Send via WhatsApp</span>
-            </span>
+            <>
+              <span className="bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 cursor-not-allowed">
+                <Mail size={13} />
+                <span>Send via Email</span>
+              </span>
+              <span className="bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 text-xs font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 cursor-not-allowed">
+                <Send size={13} />
+                <span>Send via WhatsApp</span>
+              </span>
+            </>
           )}
         </div>
       </div>
