@@ -4,44 +4,26 @@
     android:height="108dp"
     android:viewportHeight="108"
     android:viewportWidth="108">
-    <!-- Newspaper glyph, matching the in-app header logo. Authored in a 24x24 space
-         and scaled/centered into the 108x108 adaptive icon canvas below. -->
-    <group
-        android:translateX="24"
-        android:translateY="24"
-        android:scaleX="2.5"
-        android:scaleY="2.5">
-        <path
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="1.5"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:fillColor="#00000000"
-            android:pathData="M3,3 L21,3 L21,21 L3,21 Z" />
-        <path
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="1.5"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:fillColor="#00000000"
-            android:pathData="M6,6 L14,6 L14,10 L6,10 Z" />
-        <path
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="1.5"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M6,13 L18,13" />
-        <path
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="1.5"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M6,16 L18,16" />
-        <path
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="1.5"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M6,19 L14,19" />
-    </group>
+    <!-- Bold, solid-fill newspaper glyph, deliberately sized well inside the standard
+         66dp safe zone (this shape's furthest point from center is ~27dp, vs the 33dp
+         safe-zone radius) so it survives OEM launchers - like Vivo FunTouch OS - that
+         apply a circular mask and crop more aggressively than stock Android. The text
+         lines/headline box are cut in the exact background green (#059669) so they read
+         as clean negative space against the white page instead of relying on thin
+         strokes, which look weak and can blur at small launcher icon sizes. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M41,33 L67,33 A6,6 0 0 1 73,39 L73,69 A6,6 0 0 1 67,75 L41,75 A6,6 0 0 1 35,69 L35,39 A6,6 0 0 1 41,33 Z" />
+    <path
+        android:fillColor="#059669"
+        android:pathData="M45,40 L57,40 A2,2 0 0 1 59,42 L59,47 A2,2 0 0 1 57,49 L45,49 A2,2 0 0 1 43,47 L43,42 A2,2 0 0 1 45,40 Z" />
+    <path
+        android:fillColor="#059669"
+        android:pathData="M44.5,53 L64,53 A1.75,1.75 0 0 1 64,56.5 L44.5,56.5 A1.75,1.75 0 0 1 44.5,53 Z" />
+    <path
+        android:fillColor="#059669"
+        android:pathData="M44.5,59.5 L64,59.5 A1.75,1.75 0 0 1 64,63 L44.5,63 A1.75,1.75 0 0 1 44.5,59.5 Z" />
+    <path
+        android:fillColor="#059669"
+        android:pathData="M44.5,66 L58,66 A1.75,1.75 0 0 1 58,69.5 L44.5,69.5 A1.75,1.75 0 0 1 44.5,66 Z" />
 </vector>
