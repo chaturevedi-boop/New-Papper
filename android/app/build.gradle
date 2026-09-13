@@ -25,7 +25,7 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "New-Papper-${variant.name}-${variant.versionName}.apk"
+            outputFileName = "PaperTrack-${variant.name}-${variant.versionName}.apk"
         }
     }
 
