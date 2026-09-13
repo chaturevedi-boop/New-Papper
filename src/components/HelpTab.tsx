@@ -1,5 +1,5 @@
 import React from 'react';
-import { HelpCircle, Bug, Sparkles, Wrench, ClipboardCheck, Info, CheckCircle2 } from 'lucide-react';
+import { HelpCircle, Sparkles, Wrench, ClipboardCheck, Info, CheckCircle2 } from 'lucide-react';
 
 interface SectionProps {
   icon: React.ElementType;
@@ -52,70 +52,8 @@ export const HelpTab: React.FC = () => {
         </div>
       </div>
 
-      {/* 1. Bugs Fixed */}
-      <Section icon={Bug} title="1. Bugs Found and Fixed">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <SubHeading>Core Application Logic</SubHeading>
-            <ul className="space-y-2 pt-1">
-              <Item label="Payment override silently did nothing: ">
-                the payment-toggle override was written to a separate, discarded computation and never actually applied.
-              </Item>
-              <Item label="Runtime crash on payment confirmation: ">
-                Billing Engine crashed with a ReferenceError (an icon used but not imported).
-              </Item>
-              <Item label="State-mutation bug in cascade delete: ">
-                deleting a newspaper mutated the previous React state object in place instead of creating a new one.
-              </Item>
-              <Item label="Off-by-one-day bug in bulk delivery updates: ">
-                “Vacation Mode” used a timezone conversion that silently shifted every date by a day, dropping the range's end date.
-              </Item>
-              <Item label="Invalid phone numbers in seed data: ">
-                generated 9-digit numbers instead of 10 — an invalid format that broke WhatsApp's ability to resolve a chat.
-              </Item>
-              <Item label="Missing edit capability: ">
-                no “Update” existed for any master record — only Add and Delete.
-              </Item>
-            </ul>
-          </div>
-
-          <div className="space-y-2">
-            <SubHeading>Mobile (Android / Capacitor) Specific</SubHeading>
-            <ul className="space-y-2 pt-1">
-              <Item label="WhatsApp share did not open WhatsApp: ">
-                links used target="_blank", which Android's embedded WebView silently swallows.
-              </Item>
-              <Item label="File downloads silently failed: ">
-                PDF/CSV/backup downloads used a plain blob-click, a no-op inside an Android WebView.
-              </Item>
-              <Item label="Print button did nothing: ">
-                window.print() has no effect inside a WebView without native PrintManager code.
-              </Item>
-              <Item label="Fake share flow discovered: ">
-                the original flow was largely UI theater — a “simulated” share sheet and PDF dispatch screen that performed no real action.
-              </Item>
-              <Item label="Missing Android package-visibility declaration: ">
-                the manifest had no &lt;queries&gt; element, so Android 11+ hid all other apps from intent resolution, independently breaking sharing.
-              </Item>
-              <Item label="WebView lacked Web Share API support entirely: ">
-                confirmed via on-device log analysis — a first JS-only fix silently fell back to the still-broken legacy path.
-              </Item>
-              <Item label="PDF export was not a real PDF: ">
-                “downloaded” PDFs were plain-text files renamed with a .pdf-looking name.
-              </Item>
-              <Item label="Two bugs in the real PDF generator: ">
-                the ₹ symbol rendered as garbled text (missing font glyph), and a typo'd arrow character silently blanked the customer's address.
-              </Item>
-              <Item label="Generic placeholder app icon: ">
-                used the default Capacitor/Android-Studio scaffold icon instead of a branded one; a follow-up fix also corrected the icon bleeding outside the safe zone and getting clipped by circular launcher masks.
-              </Item>
-            </ul>
-          </div>
-        </div>
-      </Section>
-
-      {/* 2. Features Implemented */}
-      <Section icon={Sparkles} title="2. Features Implemented">
+      {/* 1. Features Implemented */}
+      <Section icon={Sparkles} title="1. Features Implemented">
         <div className="space-y-4">
           <div className="space-y-2">
             <SubHeading>Application Features</SubHeading>
@@ -146,7 +84,7 @@ export const HelpTab: React.FC = () => {
       </Section>
 
       {/* 3. Code Quality */}
-      <Section icon={Wrench} title="3. Code Quality & Maintainability">
+      <Section icon={Wrench} title="2. Code Quality & Maintainability">
         <ul className="space-y-2">
           <Item label="">Removed all unused imports and dead code, surfaced via strict TypeScript settings.</Item>
           <Item label="">Added a top-level Error Boundary with a Reload / Reset Data recovery screen.</Item>
@@ -158,7 +96,7 @@ export const HelpTab: React.FC = () => {
       </Section>
 
       {/* 4. Testing */}
-      <Section icon={ClipboardCheck} title="4. Testing & Verification">
+      <Section icon={ClipboardCheck} title="3. Testing & Verification">
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Two automated end-to-end passes were run against the web build using a headless-browser test harness, in
           addition to manual testing on a physical Android device.
@@ -205,7 +143,7 @@ export const HelpTab: React.FC = () => {
       </Section>
 
       {/* 5. Notes */}
-      <Section icon={Info} title="5. Notes & Possible Follow-Ups">
+      <Section icon={Info} title="4. Notes & Possible Follow-Ups">
         <ul className="space-y-2">
           <Item label="">The production bundle is large mainly due to the PDF library; code-splitting would reduce initial load if ever needed.</Item>
           <Item label="">Some build-tooling dependencies (unrelated to runtime app code) report known vulnerabilities per npm audit.</Item>

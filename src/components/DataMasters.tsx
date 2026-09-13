@@ -20,18 +20,20 @@ import {
 
 interface DataMastersProps {
   state: DatabaseState;
-  onAddArea: (area: Area) => void;
-  onUpdateArea: (id: string, updates: Partial<Area>) => void;
-  onAddBuilding: (building: Building) => void;
-  onUpdateBuilding: (id: string, updates: Partial<Building>) => void;
-  onAddWing: (wing: Wing) => void;
-  onUpdateWing: (id: string, updates: Partial<Wing>) => void;
-  onAddFlat: (flat: Flat, paperConfigs: { paperId: string, fromDate?: string, toDate?: string }[]) => void;
-  onUpdateFlat: (id: string, updates: Partial<Flat>, paperConfigs: { paperId: string, fromDate?: string, toDate?: string }[]) => void;
-  onAddPaper: (paper: Paper) => void;
-  onUpdatePaper: (id: string, updates: Partial<Paper>) => void;
-  onAddAgent: (agent: DeliveryAgent) => void;
-  onUpdateAgent: (id: string, updates: Partial<DeliveryAgent>) => void;
+  // These return false (instead of running) when a licensing guard upstream blocks the
+  // write - callers use that to skip showing a misleading "Successfully added/updated" toast.
+  onAddArea: (area: Area) => boolean;
+  onUpdateArea: (id: string, updates: Partial<Area>) => boolean;
+  onAddBuilding: (building: Building) => boolean;
+  onUpdateBuilding: (id: string, updates: Partial<Building>) => boolean;
+  onAddWing: (wing: Wing) => boolean;
+  onUpdateWing: (id: string, updates: Partial<Wing>) => boolean;
+  onAddFlat: (flat: Flat, paperConfigs: { paperId: string, fromDate?: string, toDate?: string }[]) => boolean;
+  onUpdateFlat: (id: string, updates: Partial<Flat>, paperConfigs: { paperId: string, fromDate?: string, toDate?: string }[]) => boolean;
+  onAddPaper: (paper: Paper) => boolean;
+  onUpdatePaper: (id: string, updates: Partial<Paper>) => boolean;
+  onAddAgent: (agent: DeliveryAgent) => boolean;
+  onUpdateAgent: (id: string, updates: Partial<DeliveryAgent>) => boolean;
   onDeleteRecord: (category: 'area' | 'building' | 'wing' | 'flat' | 'paper' | 'agent', id: string) => void;
 }
 
@@ -133,19 +135,22 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     // Simulate background DB thread
     await new Promise(resolve => setTimeout(resolve, 600));
 
+    let ok: boolean;
     if (editingAreaId) {
-      onUpdateArea(editingAreaId, { name: areaName.trim() });
-      setEditingAreaId(null);
-      triggerSuccess(`Successfully updated Area: ${areaName.trim()}`);
+      ok = onUpdateArea(editingAreaId, { name: areaName.trim() });
+      if (ok) {
+        setEditingAreaId(null);
+        triggerSuccess(`Successfully updated Area: ${areaName.trim()}`);
+      }
     } else {
       const newArea: Area = {
         id: `area_${Date.now()}`,
         name: areaName.trim()
       };
-      onAddArea(newArea);
-      triggerSuccess(`Successfully added Area: ${newArea.name}`);
+      ok = onAddArea(newArea);
+      if (ok) triggerSuccess(`Successfully added Area: ${newArea.name}`);
     }
-    setAreaName('');
+    if (ok) setAreaName('');
     setIsAdding(false);
   };
 
@@ -166,20 +171,23 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     setIsAdding(true);
     await new Promise(resolve => setTimeout(resolve, 600));
 
+    let ok: boolean;
     if (editingBuildingId) {
-      onUpdateBuilding(editingBuildingId, { name: buildingName.trim(), areaId: buildingAreaId });
-      setEditingBuildingId(null);
-      triggerSuccess(`Successfully updated Building: ${buildingName.trim()}`);
+      ok = onUpdateBuilding(editingBuildingId, { name: buildingName.trim(), areaId: buildingAreaId });
+      if (ok) {
+        setEditingBuildingId(null);
+        triggerSuccess(`Successfully updated Building: ${buildingName.trim()}`);
+      }
     } else {
       const newBuilding: Building = {
         id: `b_${Date.now()}`,
         areaId: buildingAreaId,
         name: buildingName.trim()
       };
-      onAddBuilding(newBuilding);
-      triggerSuccess(`Successfully added Building: ${newBuilding.name}`);
+      ok = onAddBuilding(newBuilding);
+      if (ok) triggerSuccess(`Successfully added Building: ${newBuilding.name}`);
     }
-    setBuildingName('');
+    if (ok) setBuildingName('');
     setIsAdding(false);
   };
 
@@ -201,20 +209,23 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     setIsAdding(true);
     await new Promise(resolve => setTimeout(resolve, 600));
 
+    let ok: boolean;
     if (editingWingId) {
-      onUpdateWing(editingWingId, { name: wingName.trim(), buildingId: wingBuildingId });
-      setEditingWingId(null);
-      triggerSuccess(`Successfully updated Wing: ${wingName.trim()}`);
+      ok = onUpdateWing(editingWingId, { name: wingName.trim(), buildingId: wingBuildingId });
+      if (ok) {
+        setEditingWingId(null);
+        triggerSuccess(`Successfully updated Wing: ${wingName.trim()}`);
+      }
     } else {
       const newWing: Wing = {
         id: `w_${Date.now()}`,
         buildingId: wingBuildingId,
         name: wingName.trim()
       };
-      onAddWing(newWing);
-      triggerSuccess(`Successfully added Wing: ${newWing.name}`);
+      ok = onAddWing(newWing);
+      if (ok) triggerSuccess(`Successfully added Wing: ${newWing.name}`);
     }
-    setWingName('');
+    if (ok) setWingName('');
     setIsAdding(false);
   };
 
@@ -244,28 +255,33 @@ export const DataMasters: React.FC<DataMastersProps> = ({
       ledgerType: ledgerType
     };
 
+    let ok: boolean;
     if (editingFlatId) {
-      onUpdateFlat(editingFlatId, flatUpdates, flatPaperConfigs);
-      setEditingFlatId(null);
-      triggerSuccess(`Successfully updated Customer: ${flatUpdates.customerName} (Flat ${flatUpdates.flatNumber})`);
+      ok = onUpdateFlat(editingFlatId, flatUpdates, flatPaperConfigs);
+      if (ok) {
+        setEditingFlatId(null);
+        triggerSuccess(`Successfully updated Customer: ${flatUpdates.customerName} (Flat ${flatUpdates.flatNumber})`);
+      }
     } else {
       const newFlat: Flat = {
         id: `f_${Date.now()}`,
         activeYear: 2026,
         ...flatUpdates
       };
-      onAddFlat(newFlat, flatPaperConfigs);
-      triggerSuccess(`Successfully registered Customer: ${newFlat.customerName} (Flat ${newFlat.flatNumber})`);
+      ok = onAddFlat(newFlat, flatPaperConfigs);
+      if (ok) triggerSuccess(`Successfully registered Customer: ${newFlat.customerName} (Flat ${newFlat.flatNumber})`);
     }
 
-    // Reset all form states
-    setFlatNumber('');
-    setFlatCustomerName('');
-    setFlatPhone('');
-    setFlatPaperConfigs([]);
-    setLedgerType('SUBSCRIPTION');
-    setBillingFromDate('');
-    setBillingToDate('');
+    // Reset all form states (only on success - keep the user's input if the write was blocked)
+    if (ok) {
+      setFlatNumber('');
+      setFlatCustomerName('');
+      setFlatPhone('');
+      setFlatPaperConfigs([]);
+      setLedgerType('SUBSCRIPTION');
+      setBillingFromDate('');
+      setBillingToDate('');
+    }
     setIsAdding(false);
   };
 
@@ -329,21 +345,26 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     setIsAdding(true);
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    let ok: boolean;
     if (editingPaperRecordId) {
-      onUpdatePaper(editingPaperRecordId, { name: paperName.trim(), ratePerDay: rateNum });
-      setEditingPaperRecordId(null);
-      triggerSuccess(`Successfully updated Newspaper Rate Card: ${paperName.trim()}`);
+      ok = onUpdatePaper(editingPaperRecordId, { name: paperName.trim(), ratePerDay: rateNum });
+      if (ok) {
+        setEditingPaperRecordId(null);
+        triggerSuccess(`Successfully updated Newspaper Rate Card: ${paperName.trim()}`);
+      }
     } else {
       const newPaper: Paper = {
         id: `p_${Date.now()}`,
         name: paperName.trim(),
         ratePerDay: rateNum
       };
-      onAddPaper(newPaper);
-      triggerSuccess(`Successfully added Newspaper Rate Card: ${newPaper.name}`);
+      ok = onAddPaper(newPaper);
+      if (ok) triggerSuccess(`Successfully added Newspaper Rate Card: ${newPaper.name}`);
     }
-    setPaperName('');
-    setPaperRate('');
+    if (ok) {
+      setPaperName('');
+      setPaperRate('');
+    }
     setIsAdding(false);
   };
 
@@ -366,10 +387,13 @@ export const DataMasters: React.FC<DataMastersProps> = ({
     setIsAdding(true);
     await new Promise(resolve => setTimeout(resolve, 600));
 
+    let ok: boolean;
     if (editingAgentId) {
-      onUpdateAgent(editingAgentId, { name: agentName.trim(), phone: agentPhone.trim(), assignedAreaId: agentAreaId });
-      setEditingAgentId(null);
-      triggerSuccess(`Successfully updated Delivery Agent: ${agentName.trim()}`);
+      ok = onUpdateAgent(editingAgentId, { name: agentName.trim(), phone: agentPhone.trim(), assignedAreaId: agentAreaId });
+      if (ok) {
+        setEditingAgentId(null);
+        triggerSuccess(`Successfully updated Delivery Agent: ${agentName.trim()}`);
+      }
     } else {
       const newAgent: DeliveryAgent = {
         id: `a_${Date.now()}`,
@@ -377,11 +401,13 @@ export const DataMasters: React.FC<DataMastersProps> = ({
         phone: agentPhone.trim(),
         assignedAreaId: agentAreaId
       };
-      onAddAgent(newAgent);
-      triggerSuccess(`Registered Delivery Agent: ${newAgent.name}`);
+      ok = onAddAgent(newAgent);
+      if (ok) triggerSuccess(`Registered Delivery Agent: ${newAgent.name}`);
     }
-    setAgentName('');
-    setAgentPhone('');
+    if (ok) {
+      setAgentName('');
+      setAgentPhone('');
+    }
     setIsAdding(false);
   };
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { Area, Building, Wing, Flat, Paper, DeliveryAgent, BillingSummary } from './types';
 import { generateInitialData, DatabaseState, calculateBill, getPaymentOverrideKey } from './data/dummyGenerator';
 import { useTheme } from './hooks/useTheme';
+import { useTrialLicense } from './hooks/useTrialLicense';
 import { shareOrDownloadFile } from './utils/shareFile';
 import { DashboardStats } from './components/DashboardStats';
 import { DeliveryList } from './components/DeliveryList';
@@ -10,6 +11,7 @@ import { DataMasters } from './components/DataMasters';
 import { HelpTab } from './components/HelpTab';
 import { InvoiceModal } from './components/InvoiceModal';
 import { FeedbackModal } from './components/FeedbackModal';
+import { LicenseModal } from './components/LicenseModal';
 import { BottomNav, type TabType } from './components/BottomNav';
 import { SideNav } from './components/SideNav';
 import { Newspaper, Calendar, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react';
@@ -43,6 +45,26 @@ export default function App() {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [themePreference, setThemePreference] = useTheme();
   const backupFileInputRef = useRef<HTMLInputElement>(null);
+
+  // 15-day free trial: after it expires (and the app isn't unlocked with a code),
+  // every data-mutating action is blocked in favor of showing the license modal -
+  // viewing, invoices, sharing, and backups keep working regardless.
+  const { daysRemaining, isExpired, license, unlock } = useTrialLicense();
+  const [showLicenseModal, setShowLicenseModal] = useState(false);
+
+  // Wraps a mutating handler so it's replaced with the license prompt once the trial
+  // expires. Returns whether the action actually ran, so callers that show a "Success"
+  // toast (e.g. DataMasters) can skip it when the write was blocked instead of faking it.
+  function guard<T extends (...args: any[]) => void>(fn: T): (...args: Parameters<T>) => boolean {
+    return (...args: Parameters<T>) => {
+      if (isExpired) {
+        setShowLicenseModal(true);
+        return false;
+      }
+      fn(...args);
+      return true;
+    };
+  }
 
   // Step the accounting cycle back/forward one month, rolling the year over at the edges
   const handlePrevMonth = () => {
@@ -476,16 +498,19 @@ export default function App() {
         themePreference={themePreference}
         onCycleTheme={cycleThemePreference}
         onExportBackup={handleExportBackup}
-        onImportBackupClick={handleImportBackupClick}
-        onResetDatabase={handleResetDatabase}
-        onEraseAllData={handleEraseAllData}
+        onImportBackupClick={guard(handleImportBackupClick)}
+        onResetDatabase={guard(handleResetDatabase)}
+        onEraseAllData={guard(handleEraseAllData)}
         onShowFeedback={() => setShowFeedbackModal(true)}
+        license={license}
+        daysRemaining={daysRemaining}
+        onShowLicense={() => setShowLicenseModal(true)}
       />
       <input
         ref={backupFileInputRef}
         type="file"
         accept="application/json"
-        onChange={handleImportBackupFile}
+        onChange={guard(handleImportBackupFile)}
         className="hidden"
       />
 
@@ -551,39 +576,39 @@ export default function App() {
           {activeTab === 'drops' && (
             <DeliveryList
               state={db}
-              onUpdateDeliveryStatus={handleUpdateDeliveryStatus}
-              onBulkUpdateDeliveryStatus={handleBulkUpdateDeliveryStatus}
+              onUpdateDeliveryStatus={guard(handleUpdateDeliveryStatus)}
+              onBulkUpdateDeliveryStatus={guard(handleBulkUpdateDeliveryStatus)}
               selectedMonth={selectedMonth}
               selectedYear={selectedYear}
             />
           )}
 
           {activeTab === 'billing' && (
-            <BillingEngine 
+            <BillingEngine
               state={db}
               selectedMonth={selectedMonth}
               selectedYear={selectedYear}
               onViewInvoice={handleViewInvoice}
-              onTogglePaymentStatus={handleTogglePaymentStatus}
+              onTogglePaymentStatus={guard(handleTogglePaymentStatus)}
             />
           )}
 
           {activeTab === 'masters' && (
             <DataMasters
               state={db}
-              onAddArea={handleAddArea}
-              onUpdateArea={handleUpdateArea}
-              onAddBuilding={handleAddBuilding}
-              onUpdateBuilding={handleUpdateBuilding}
-              onAddWing={handleAddWing}
-              onUpdateWing={handleUpdateWing}
-              onAddFlat={handleAddFlat}
-              onUpdateFlat={handleUpdateFlat}
-              onAddPaper={handleAddPaper}
-              onUpdatePaper={handleUpdatePaper}
-              onAddAgent={handleAddAgent}
-              onUpdateAgent={handleUpdateAgent}
-              onDeleteRecord={handleDeleteRecord}
+              onAddArea={guard(handleAddArea)}
+              onUpdateArea={guard(handleUpdateArea)}
+              onAddBuilding={guard(handleAddBuilding)}
+              onUpdateBuilding={guard(handleUpdateBuilding)}
+              onAddWing={guard(handleAddWing)}
+              onUpdateWing={guard(handleUpdateWing)}
+              onAddFlat={guard(handleAddFlat)}
+              onUpdateFlat={guard(handleUpdateFlat)}
+              onAddPaper={guard(handleAddPaper)}
+              onUpdatePaper={guard(handleUpdatePaper)}
+              onAddAgent={guard(handleAddAgent)}
+              onUpdateAgent={guard(handleUpdateAgent)}
+              onDeleteRecord={guard(handleDeleteRecord)}
             />
           )}
 
@@ -597,16 +622,28 @@ export default function App() {
 
       {/* 3. Invoice Detail Overlay Modal */}
       {selectedInvoice && (
-        <InvoiceModal 
+        <InvoiceModal
           bill={selectedInvoice}
           agent={getAgentForFlat(selectedInvoice.flatId)}
           onClose={() => setSelectedInvoice(null)}
-          onTogglePaymentStatus={handleTogglePaymentStatus}
+          onTogglePaymentStatus={guard(handleTogglePaymentStatus)}
         />
       )}
 
       {/* 4. Feedback / Feature Request Modal */}
       {showFeedbackModal && <FeedbackModal onClose={() => setShowFeedbackModal(false)} />}
+
+      {/* 5. Free Trial / License Modal - opened voluntarily from the drawer, or forced
+          open automatically whenever a blocked (post-trial) action is attempted */}
+      {showLicenseModal && (
+        <LicenseModal
+          isExpired={isExpired}
+          daysRemaining={daysRemaining}
+          license={license}
+          onUnlock={unlock}
+          onClose={() => setShowLicenseModal(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ThemePreference } from '../hooks/useTheme';
-import { Newspaper, X, Sun, Moon, Monitor, DownloadCloud, UploadCloud, RefreshCw, Eraser, MessageSquarePlus } from 'lucide-react';
+import type { ParsedLicense } from '../utils/licenseKey';
+import { Newspaper, X, Sun, Moon, Monitor, DownloadCloud, UploadCloud, RefreshCw, Eraser, MessageSquarePlus, ShieldCheck } from 'lucide-react';
 
 interface SideNavProps {
   isOpen: boolean;
@@ -12,7 +13,14 @@ interface SideNavProps {
   onResetDatabase: () => void;
   onEraseAllData: () => void;
   onShowFeedback: () => void;
+  license: ParsedLicense | null;
+  daysRemaining: number;
+  onShowLicense: () => void;
 }
+
+const DURATION_SHORT_LABEL: Record<ParsedLicense['duration'], string> = {
+  '1Y': '1yr', '5Y': '5yr', LT: 'Lifetime'
+};
 
 interface UtilityRowProps {
   icon: React.ElementType;
@@ -55,7 +63,10 @@ export const SideNav: React.FC<SideNavProps> = ({
   onImportBackupClick,
   onResetDatabase,
   onEraseAllData,
-  onShowFeedback
+  onShowFeedback,
+  license,
+  daysRemaining,
+  onShowLicense
 }) => {
   const run = (action: () => void) => () => {
     onClose();
@@ -97,6 +108,13 @@ export const SideNav: React.FC<SideNavProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          <UtilityRow
+            icon={ShieldCheck}
+            label="License"
+            detail={license ? `${license.customerName} · ${DURATION_SHORT_LABEL[license.duration]}` : `Trial: ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left`}
+            onClick={run(onShowLicense)}
+          />
+          <div className="h-px bg-slate-800 my-2 mx-1" />
           <UtilityRow
             icon={THEME_ICON[themePreference]}
             label="Theme"
