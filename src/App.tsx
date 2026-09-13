@@ -25,7 +25,8 @@ import {
   ChevronRight,
   DownloadCloud,
   UploadCloud,
-  MessageSquarePlus
+  MessageSquarePlus,
+  Eraser
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -110,6 +111,23 @@ export default function App() {
       setDb(generateInitialData());
       setSelectedMonth(6);
       setSelectedYear(2026);
+    }
+  };
+
+  // Permanently wipe all data down to a genuinely empty state (not the demo seed)
+  const handleEraseAllData = () => {
+    if (window.confirm('Erase ALL data? This permanently deletes every Area, Building, Wing, Flat, Paper, Agent, and delivery log - there is no undo. Consider using "Download Backup" first if you want to keep a copy.')) {
+      setDb({
+        areas: [],
+        buildings: [],
+        wings: [],
+        flats: [],
+        papers: [],
+        subscriptions: [],
+        agents: [],
+        deliveryLogs: [],
+        paymentOverrides: {}
+      });
     }
   };
 
@@ -557,6 +575,15 @@ export default function App() {
               title="Reload & Reset 500+ Dummy Logs database"
             >
               <RefreshCw size={14} />
+            </button>
+
+            {/* Permanently erase all data (empty state, not the demo seed) */}
+            <button
+              onClick={handleEraseAllData}
+              className="text-slate-400 hover:text-rose-400 p-2 rounded-xl hover:bg-rose-950/40 transition-colors cursor-pointer"
+              title="Erase ALL data permanently (no undo)"
+            >
+              <Eraser size={14} />
             </button>
 
             {/* Suggest a feature or report a bug */}
