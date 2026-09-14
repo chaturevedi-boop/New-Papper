@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { DatabaseState, calculateBill, getPaymentOverrideKey } from '../data/dummyGenerator';
-import { 
-  Building2, 
-  TrendingUp, 
-  CreditCard, 
-  AlertCircle, 
-  Newspaper 
+import { DatabaseState, calculateBill, collectedAmountFor, getExpensesForMonth, sumExpenses } from '../data/dummyGenerator';
+import {
+  Building2,
+  TrendingUp,
+  CreditCard,
+  AlertCircle,
+  Newspaper,
+  Wallet
 } from 'lucide-react';
 import {
   BarChart,
@@ -34,7 +35,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ state, month, ye
   // Calculate high-level stats for the given month, accounting for payment overrides.
   // Memoized since calculateBill runs once per flat and this component re-renders on
   // any parent state change (tab switches, modal toggles, etc.), not just data changes.
-  const { grossPotential, collectedAmount, pendingAmount, paidCount, unpaidCount } = useMemo(() => {
+  const { grossPotential, collectedAmount, pendingAmount, paidCount, unpaidCount, netProfit, monthExpenses } = useMemo(() => {
     let grossPotential = 0;
     let collectedAmount = 0;
     let pendingAmount = 0;
@@ -43,22 +44,16 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ state, month, ye
 
     flats.forEach((flat) => {
       const bill = calculateBill(flat, month, year, state);
-
-      // Inject payment override if present
-      const key = getPaymentOverrideKey(flat.id, month, year);
-      const override = state.paymentOverrides[key];
-      let isPaid = bill.paid;
-      if (override === 'PAID') isPaid = true;
-      if (override === 'UNPAID') isPaid = false;
-
       grossPotential += bill.grossAmount;
-      collectedAmount += isPaid ? bill.netAmount : 0;
-      pendingAmount += !isPaid ? bill.netAmount : 0;
-      if (isPaid) paidCount++;
+      collectedAmount += collectedAmountFor(bill);
+      pendingAmount += bill.balanceDue;
+      if (bill.status === 'PAID') paidCount++;
       else unpaidCount++;
     });
 
-    return { grossPotential, collectedAmount, pendingAmount, paidCount, unpaidCount };
+    const monthExpenses = sumExpenses(getExpensesForMonth(state, month, year));
+
+    return { grossPotential, collectedAmount, pendingAmount, paidCount, unpaidCount, netProfit: collectedAmount - monthExpenses, monthExpenses };
   }, [flats, month, year, state]);
 
   const activeSubsCount = subscriptions.filter(s => s.active).length;
@@ -99,6 +94,13 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ state, month, ye
       icon: AlertCircle,
       bgColor: 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400',
     },
+    {
+      label: 'Net Profit',
+      value: `₹${netProfit.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+      subText: `After ₹${monthExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })} expenses`,
+      icon: Wallet,
+      bgColor: netProfit >= 0 ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400',
+    },
   ];
 
   // Calculate monthly revenue trends across the last six months (also memoized -
@@ -121,19 +123,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ state, month, ye
 
       flats.forEach((flat) => {
         const bill = calculateBill(flat, m, y, state);
-
-        // Inject payment override if present
-        const key = getPaymentOverrideKey(flat.id, m, y);
-        const override = state.paymentOverrides[key];
-        let isPaid = bill.paid;
-        if (override === 'PAID') isPaid = true;
-        if (override === 'UNPAID') isPaid = false;
-
-        if (isPaid) {
-          collected += bill.netAmount;
-        } else {
-          pending += bill.netAmount;
-        }
+        collected += collectedAmountFor(bill);
+        pending += bill.balanceDue;
       });
 
       return {
@@ -188,7 +179,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ state, month, ye
   return (
     <div className="space-y-6">
       {/* 5 Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {stats.map((stat, i) => {
           const Icon = stat.icon;
           return (

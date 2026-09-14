@@ -14,8 +14,11 @@ import {
   CheckCircle,
   AlertCircle,
   AlertTriangle,
+  Wallet,
   Eye,
-  Download
+  Download,
+  CreditCard,
+  Send
 } from 'lucide-react';
 
 interface InvoiceModalProps {
@@ -23,17 +26,31 @@ interface InvoiceModalProps {
   agent: DeliveryAgent | null;
   onClose: () => void;
   onTogglePaymentStatus: (flatId: string) => void;
+  onRecordPayment: (flatId: string, amount: number, date: string, note?: string) => void;
 }
 
 export const InvoiceModal: React.FC<InvoiceModalProps> = ({
   bill,
   agent,
   onClose,
-  onTogglePaymentStatus
+  onTogglePaymentStatus,
+  onRecordPayment
 }) => {
   const [shareFailed, setShareFailed] = useState<boolean>(false);
   const [pdfFailed, setPdfFailed] = useState<boolean>(false);
   const [showPrintPreview, setShowPrintPreview] = useState<boolean>(false);
+  const [showRecordPayment, setShowRecordPayment] = useState<boolean>(false);
+  const [paymentAmount, setPaymentAmount] = useState(bill.balanceDue > 0 ? bill.balanceDue.toFixed(2) : '');
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paymentNote, setPaymentNote] = useState('');
+
+  const submitRecordPayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    onRecordPayment(bill.flatId, amount, paymentDate, paymentNote.trim() || undefined);
+    setShowRecordPayment(false);
+  };
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -51,6 +68,11 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
     const rawPhone = bill.phoneNumber || "";
     return rawPhone.replace(/\+/g, '').replace(/ /g, '');
   }, [bill]);
+
+  const receiptUrl = useMemo(() => {
+    const message = `Dear *${bill.customerName}*,\n\nThank you! We've received your full payment of *₹${bill.netAmount.toFixed(2)}* for *${monthName} ${bill.year}*.\n\nYour account is settled for this month.\n\n- PaperTrack`;
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  }, [bill, monthName, cleanPhone]);
 
   // Plain (non target="_blank") link: inside a Capacitor Android WebView, target="_blank"
   // is swallowed silently since the app doesn't implement onCreateWindow for new windows.
@@ -177,15 +199,22 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
               <button
                 onClick={() => onTogglePaymentStatus(bill.flatId)}
                 className={`mt-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-all active:scale-[0.96] flex items-center gap-1.5 print:bg-transparent ${
-                  bill.paid 
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/60' 
+                  bill.status === 'PAID'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/60'
+                    : bill.status === 'PARTIAL'
+                    ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900/60'
                     : 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-900/60'
                 }`}
-                title="Click to toggle Paid/Unpaid"
+                title="Click to mark fully Paid/Unpaid"
               >
-                {bill.paid ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
-                <span>{bill.paid ? 'PAID / INVOICE SETTLED' : 'DUE / UNPAID'}</span>
+                {bill.status === 'PAID' ? <CheckCircle size={13} /> : bill.status === 'PARTIAL' ? <Wallet size={13} /> : <AlertCircle size={13} />}
+                <span>{bill.status === 'PAID' ? 'PAID / INVOICE SETTLED' : bill.status === 'PARTIAL' ? 'PARTIALLY PAID' : 'DUE / UNPAID'}</span>
               </button>
+              {bill.status !== 'PAID' && (
+                <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-1">
+                  ₹{bill.amountPaid.toFixed(2)} paid · ₹{bill.balanceDue.toFixed(2)} due
+                </p>
+              )}
             </div>
           </div>
 
@@ -306,6 +335,23 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
         {/* Invoice Control Buttons (Hidden in print) */}
         <div className="bg-slate-50 dark:bg-slate-850 px-6 py-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
           <div className="flex flex-wrap items-center gap-2">
+            {bill.status !== 'PAID' ? (
+              <button
+                onClick={() => setShowRecordPayment(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 transition-colors active:scale-[0.96] cursor-pointer"
+              >
+                <CreditCard size={16} />
+                <span>Record Payment</span>
+              </button>
+            ) : (
+              <a
+                href={receiptUrl}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 transition-colors active:scale-[0.96] cursor-pointer"
+              >
+                <Send size={16} />
+                <span>Send Receipt via WhatsApp</span>
+              </a>
+            )}
             <button
               onClick={() => setShowPrintPreview(true)}
               className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-1.5 transition-colors active:scale-[0.96] cursor-pointer border border-slate-700"
@@ -485,6 +531,66 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                 Close Preview
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Payment */}
+      {showRecordPayment && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-fade-in">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-950/40 rounded-xl">
+                  <CreditCard className="text-blue-600 dark:text-blue-400" size={20} />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">Record Payment</h4>
+              </div>
+              <button onClick={() => setShowRecordPayment(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 p-2.5 rounded-xl transition-colors cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={submitRecordPayment} className="p-5 space-y-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Balance due: ₹{bill.balanceDue.toFixed(2)}</p>
+              <div>
+                <label htmlFor="invoice-payment-amount" className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Amount (₹)</label>
+                <input
+                  id="invoice-payment-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="w-full text-sm px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label htmlFor="invoice-payment-date" className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Date Received</label>
+                <input
+                  id="invoice-payment-date"
+                  type="date"
+                  required
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full text-sm px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label htmlFor="invoice-payment-note" className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Note (optional)</label>
+                <input
+                  id="invoice-payment-note"
+                  type="text"
+                  placeholder="e.g. Cash, UPI, part payment"
+                  value={paymentNote}
+                  onChange={(e) => setPaymentNote(e.target.value)}
+                  className="w-full text-sm px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none dark:text-slate-100"
+                />
+              </div>
+              <button type="submit" className="w-full py-3 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2">
+                <CheckCircle size={16} /> Save Payment
+              </button>
+            </form>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { DatabaseState, getDeliveryLogIndex } from '../data/dummyGenerator';
+import React, { useState, useMemo, useEffect } from 'react';
+import { DatabaseState, getDeliveryLogIndex, getSubscriptionsByFlatIndex } from '../data/dummyGenerator';
 import { Flat } from '../types';
 import { RouteSheetModal } from './RouteSheetModal';
 import {
@@ -11,32 +11,61 @@ import {
   ChevronDown,
   ChevronUp,
   Plane,
-  Map
+  Map,
+  Pause,
+  Play
 } from 'lucide-react';
 
 interface DeliveryListProps {
   state: DatabaseState;
   onUpdateDeliveryStatus: (flatId: string, paperId: string, date: string, status: 'DELIVERED' | 'SKIPPED') => void;
   onBulkUpdateDeliveryStatus: (flatId: string, paperIds: string[], fromDate: string, toDate: string, status: 'DELIVERED' | 'SKIPPED') => void;
+  onUpdateSubscriptionStatus: (subscriptionId: string, status: 'ACTIVE' | 'PAUSED') => void;
   selectedMonth: number;
   selectedYear: number;
+  // Set by the global search modal to jump straight to a flat - resolved into the right
+  // area/building filters and an expanded card below, then cleared via onFocusHandled.
+  pendingFocusFlatId: string | null;
+  onFocusHandled: () => void;
 }
 
 export const DeliveryList: React.FC<DeliveryListProps> = ({
   state,
   onUpdateDeliveryStatus,
   onBulkUpdateDeliveryStatus,
+  onUpdateSubscriptionStatus,
   selectedMonth,
-  selectedYear
+  selectedYear,
+  pendingFocusFlatId,
+  onFocusHandled
 }) => {
   const { areas, buildings, wings, flats, papers, subscriptions, deliveryLogs, agents } = state;
   const deliveryLogIndex = useMemo(() => getDeliveryLogIndex(deliveryLogs), [deliveryLogs]);
+  const subsByFlat = useMemo(() => getSubscriptionsByFlatIndex(subscriptions), [subscriptions]);
 
   // Selected filters
   const [selectedAreaId, setSelectedAreaId] = useState<string>(areas[0]?.id || '');
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('ALL');
   const [expandedFlatId, setExpandedFlatId] = useState<string | null>(null);
   const [showRouteSheet, setShowRouteSheet] = useState(false);
+
+  // Resolve a pending global-search jump into concrete filters once, then hand control back
+  useEffect(() => {
+    if (!pendingFocusFlatId) return;
+    const flat = flats.find(f => f.id === pendingFocusFlatId);
+    if (flat) {
+      const wing = wings.find(w => w.id === flat.wingId);
+      const building = wing ? buildings.find(b => b.id === wing.buildingId) : null;
+      if (building) {
+        setSelectedAreaId(building.areaId);
+        setSelectedBuildingId(building.id);
+      }
+      setExpandedFlatId(flat.id);
+    }
+    onFocusHandled();
+    // Only re-run when a new target arrives - flats/wings/buildings are read at that moment
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFocusFlatId]);
 
   // Vacation-mode bulk skip/deliver date range, scoped to whichever flat is currently expanded
   const [vacationFrom, setVacationFrom] = useState('');
@@ -206,10 +235,13 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
               <div className="grid grid-cols-1 gap-3">
                 {group.flatsList.map((flat) => {
                   const isExpanded = expandedFlatId === flat.id;
-                  
-                  // Find subscribed papers
-                  const flatSubs = subscriptions.filter(s => s.flatId === flat.id && s.active);
-                  const activePapers = papers.filter(p => flatSubs.some(s => s.paperId === p.id));
+
+                  // All active-ledger subscriptions for this flat (active flag, not paused)
+                  const flatSubs = (subsByFlat.get(flat.id) || []).filter(s => s.active);
+                  // Only the ones actually being delivered/billed right now (excludes paused)
+                  const deliverableSubs = flatSubs.filter(s => s.status !== 'PAUSED');
+                  const activePapers = papers.filter(p => deliverableSubs.some(s => s.paperId === p.id));
+                  const pausedCount = flatSubs.length - deliverableSubs.length;
 
                   return (
                     <div 
@@ -242,6 +274,11 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                                   {paper.name} (₹{paper.ratePerDay}/d)
                                 </span>
                               ))}
+                              {pausedCount > 0 && (
+                                <span className="text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900 px-2 py-0.5 rounded flex items-center gap-1">
+                                  <Pause size={9} /> {pausedCount} paused
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -324,17 +361,42 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                             </button>
                           </div>
 
-                          {/* Paper selector for log entry */}
-                          {activePapers.map(paper => {
+                          {/* Paper selector for log entry - all subscriptions show here (including
+                              paused ones, so they can be resumed), but only deliverable ones get
+                              a calendar grid since a paused paper isn't being billed. */}
+                          {flatSubs.map(sub => {
+                            const paper = papers.find(p => p.id === sub.paperId);
+                            if (!paper) return null;
+                            const isPaused = sub.status === 'PAUSED';
+
                             return (
                               <div key={paper.id} className="space-y-2 mb-4 last:mb-0">
-                                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                                  <span>{paper.name}</span>
-                                  <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded">
-                                    Rate: ₹{paper.ratePerDay}/day
-                                  </span>
+                                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-between flex-wrap gap-2">
+                                  <span className={isPaused ? 'text-slate-400 dark:text-slate-500' : ''}>{paper.name}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded">
+                                      Rate: ₹{paper.ratePerDay}/day
+                                    </span>
+                                    <button
+                                      onClick={() => onUpdateSubscriptionStatus(sub.id, isPaused ? 'ACTIVE' : 'PAUSED')}
+                                      className={`text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors active:scale-[0.95] cursor-pointer ${
+                                        isPaused
+                                          ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100'
+                                          : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100'
+                                      }`}
+                                      title={isPaused ? 'Resume this subscription' : 'Pause this subscription (keeps history, stops delivery/billing)'}
+                                    >
+                                      {isPaused ? <Play size={11} /> : <Pause size={11} />}
+                                      {isPaused ? 'Resume' : 'Pause'}
+                                    </button>
+                                  </div>
                                 </div>
 
+                                {isPaused ? (
+                                  <p className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50/60 dark:bg-amber-950/20 rounded-lg px-3 py-2">
+                                    Paused - no deliveries or billing until resumed.
+                                  </p>
+                                ) : (
                                 <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                                   {calendarDays.map((date) => {
                                     const dayNum = date.split('-')[2];
@@ -366,6 +428,7 @@ export const DeliveryList: React.FC<DeliveryListProps> = ({
                                     );
                                   })}
                                 </div>
+                                )}
                               </div>
                             );
                           })}

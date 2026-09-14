@@ -1,20 +1,36 @@
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
-import { Area, Building, Wing, Flat, Paper, DeliveryAgent, BillingSummary } from './types';
-import { generateInitialData, DatabaseState, calculateBill, getPaymentOverrideKey } from './data/dummyGenerator';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Area, Building, Wing, Flat, Paper, DeliveryAgent, BillingSummary, Expense, PaymentRecord } from './types';
+import {
+  generateInitialData,
+  normalizeDatabaseState,
+  EMPTY_DATABASE,
+  DatabaseState,
+  calculateBill,
+  getPaymentOverrideKey,
+  getAgentPayoutKey
+} from './data/dummyGenerator';
+import { applyCustomerImport, type ImportRow } from './utils/csvImport';
 import { useTheme } from './hooks/useTheme';
 import { useTrialLicense } from './hooks/useTrialLicense';
 import { shareOrDownloadFile } from './utils/shareFile';
+import { runAutoBackup } from './utils/autoBackup';
+import { completeAuth, hasPendingAuth, NATIVE_REDIRECT_URI } from './utils/googleDrive';
 import { DashboardStats } from './components/DashboardStats';
 import { DeliveryList } from './components/DeliveryList';
 import { BillingEngine } from './components/BillingEngine';
+import { ReportsTab } from './components/ReportsTab';
 import { DataMasters } from './components/DataMasters';
 import { HelpTab } from './components/HelpTab';
 import { InvoiceModal } from './components/InvoiceModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { LicenseModal } from './components/LicenseModal';
+import { GlobalSearchModal } from './components/GlobalSearchModal';
+import { DriveBackupModal } from './components/DriveBackupModal';
 import { BottomNav, type TabType } from './components/BottomNav';
 import { SideNav } from './components/SideNav';
-import { Newspaper, Calendar, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react';
+import { Newspaper, Calendar, ChevronLeft, ChevronRight, MoreVertical, Search } from 'lucide-react';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -28,9 +44,7 @@ export default function App() {
     const saved = localStorage.getItem('newspaper_billing_state');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        // Backfill for state saved before paymentOverrides was introduced
-        return { paymentOverrides: {}, ...parsed };
+        return normalizeDatabaseState(JSON.parse(saved));
       } catch (e) {
         console.error('Failed to parse database state from local storage, generating new data', e);
       }
@@ -101,11 +115,57 @@ export default function App() {
   // Modal displays
   const [selectedInvoice, setSelectedInvoice] = useState<BillingSummary | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const [showDriveModal, setShowDriveModal] = useState(false);
+  const [driveConnectVersion, setDriveConnectVersion] = useState(0);
+
+  // Global search jumps to a flat on the Drops tab - this is what it hands off, and
+  // DeliveryList clears it once it's resolved the target's area/building filters.
+  const [pendingFocusFlatId, setPendingFocusFlatId] = useState<string | null>(null);
 
   // Sync to local storage
   useEffect(() => {
     localStorage.setItem('newspaper_billing_state', JSON.stringify(db));
   }, [db]);
+
+  // Local auto-backup: on native, mirror a debounced snapshot into the device's Documents
+  // folder after data settles, independent of the manual "Download Backup" action. Web has
+  // no equivalent public folder, so this is a no-op there (see utils/autoBackup.ts).
+  const autoBackupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [backupTick, setBackupTick] = useState(0);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (autoBackupTimer.current) clearTimeout(autoBackupTimer.current);
+    autoBackupTimer.current = setTimeout(() => {
+      runAutoBackup(JSON.stringify(db)).then(() => setBackupTick(t => t + 1));
+    }, 4000);
+    return () => { if (autoBackupTimer.current) clearTimeout(autoBackupTimer.current); };
+  }, [db]);
+
+  // Google Drive OAuth completion: native returns via the custom-scheme deep link registered
+  // in AndroidManifest.xml; web returns as a normal redirect back to this same page with a
+  // ?code= query param.
+  useEffect(() => {
+    let removeListener: (() => void) | undefined;
+
+    if (Capacitor.isNativePlatform()) {
+      CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+        if (!url.startsWith(NATIVE_REDIRECT_URI)) return;
+        completeAuth(url)
+          .then(() => setDriveConnectVersion(v => v + 1))
+          .catch((err) => console.error('Google Drive auth failed', err));
+      }).then(handle => { removeListener = () => handle.remove(); });
+    } else if (hasPendingAuth() && window.location.search.includes('code=')) {
+      completeAuth(window.location.href)
+        .then(() => setDriveConnectVersion(v => v + 1))
+        .catch((err) => console.error('Google Drive auth failed', err))
+        .finally(() => {
+          window.history.replaceState({}, '', `${window.location.origin}${window.location.pathname}`);
+        });
+    }
+
+    return () => removeListener?.();
+  }, []);
 
   // Reset database state with clean dummy seed
   const handleResetDatabase = () => {
@@ -119,17 +179,7 @@ export default function App() {
   // Permanently wipe all data down to a genuinely empty state (not the demo seed)
   const handleEraseAllData = () => {
     if (window.confirm('Erase ALL data? This permanently deletes every Area, Building, Wing, Flat, Paper, Agent, and delivery log - there is no undo. Consider using "Download Backup" first if you want to keep a copy.')) {
-      setDb({
-        areas: [],
-        buildings: [],
-        wings: [],
-        flats: [],
-        papers: [],
-        subscriptions: [],
-        agents: [],
-        deliveryLogs: [],
-        paymentOverrides: {}
-      });
+      setDb({ ...EMPTY_DATABASE });
     }
   };
 
@@ -146,6 +196,24 @@ export default function App() {
     backupFileInputRef.current?.click();
   };
 
+  // Shared by the file-picker restore and the Google Drive restore
+  const restoreFromJson = (jsonText: string): boolean => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      const requiredKeys: (keyof DatabaseState)[] = ['areas', 'buildings', 'wings', 'flats', 'papers', 'subscriptions', 'agents', 'deliveryLogs'];
+      const isValid = requiredKeys.every(key => Array.isArray(parsed[key]));
+      if (!isValid) {
+        window.alert('This file does not look like a valid PaperTrack backup.');
+        return false;
+      }
+      setDb(normalizeDatabaseState(parsed));
+      return true;
+    } catch {
+      window.alert('Failed to read backup file: it is not valid JSON.');
+      return false;
+    }
+  };
+
   // Restore database state from a previously exported backup JSON file
   const handleImportBackupFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -154,22 +222,23 @@ export default function App() {
 
     const reader = new FileReader();
     reader.onload = () => {
+      const text = reader.result as string;
       try {
-        const parsed = JSON.parse(reader.result as string);
-        const requiredKeys: (keyof DatabaseState)[] = ['areas', 'buildings', 'wings', 'flats', 'papers', 'subscriptions', 'agents', 'deliveryLogs'];
-        const isValid = requiredKeys.every(key => Array.isArray(parsed[key]));
-        if (!isValid) {
-          window.alert('This file does not look like a valid PaperTrack backup.');
-          return;
-        }
-        if (window.confirm('Restoring this backup will replace all current data. Continue?')) {
-          setDb({ paymentOverrides: {}, ...parsed });
-        }
-      } catch (err) {
+        JSON.parse(text); // just to give the "not valid JSON" message from a consistent place
+      } catch {
         window.alert('Failed to read backup file: it is not valid JSON.');
+        return;
+      }
+      if (window.confirm('Restoring this backup will replace all current data. Continue?')) {
+        restoreFromJson(text);
       }
     };
     reader.readAsText(file);
+  };
+
+  // Drive restore already confirms inside DriveBackupModal before calling this
+  const handleRestoreFromDrive = (jsonText: string) => {
+    restoreFromJson(jsonText);
   };
 
   // Update Delivery Log state (delivered / skipped toggle)
@@ -269,6 +338,7 @@ export default function App() {
           flatId: flat.id,
           paperId: config.paperId,
           active: true,
+          status: 'ACTIVE',
           fromDate: config.fromDate,
           toDate: config.toDate
         });
@@ -288,6 +358,7 @@ export default function App() {
         flatId: id,
         paperId: config.paperId,
         active: true,
+        status: 'ACTIVE' as const,
         fromDate: config.fromDate,
         toDate: config.toDate
       }));
@@ -296,12 +367,41 @@ export default function App() {
     });
   };
 
+  // Bulk-imports customers (and any missing Area/Building/Wing they reference) from a
+  // validated CSV, in a single atomic state update.
+  const handleImportCustomers = (rows: ImportRow[]) => {
+    setDb(prev => applyCustomerImport(rows, prev));
+  };
+
+  // Pauses/resumes a subscription without deleting it, so its delivery/billing history is
+  // preserved and it can be resumed later exactly where it left off.
+  const handleUpdateSubscriptionStatus = (subscriptionId: string, status: 'ACTIVE' | 'PAUSED') => {
+    setDb(prev => ({
+      ...prev,
+      subscriptions: prev.subscriptions.map(s => s.id === subscriptionId ? { ...s, status } : s)
+    }));
+  };
+
   const handleAddPaper = (paper: Paper) => {
     setDb(prev => ({ ...prev, papers: [...prev.papers, paper] }));
   };
 
-  const handleUpdatePaper = (id: string, updates: Partial<Paper>) => {
-    setDb(prev => ({ ...prev, papers: prev.papers.map(p => p.id === id ? { ...p, ...updates } : p) }));
+  // Rate changes don't overwrite the paper's rate in place - they push a new history entry
+  // effective from the given date, so bills already issued for earlier dates are unaffected.
+  const handleUpdatePaperRate = (id: string, newRate: number, effectiveFrom: string) => {
+    setDb(prev => ({
+      ...prev,
+      papers: prev.papers.map(p => {
+        if (p.id !== id) return p;
+        const history = [...p.rateHistory.filter(h => h.effectiveFrom !== effectiveFrom), { rate: newRate, effectiveFrom }]
+          .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+        return { ...p, ratePerDay: history[history.length - 1].rate, rateHistory: history };
+      })
+    }));
+  };
+
+  const handleUpdatePaperName = (id: string, name: string) => {
+    setDb(prev => ({ ...prev, papers: prev.papers.map(p => p.id === id ? { ...p, name } : p) }));
   };
 
   const handleAddAgent = (agent: DeliveryAgent) => {
@@ -310,6 +410,14 @@ export default function App() {
 
   const handleUpdateAgent = (id: string, updates: Partial<DeliveryAgent>) => {
     setDb(prev => ({ ...prev, agents: prev.agents.map(a => a.id === id ? { ...a, ...updates } : a) }));
+  };
+
+  const handleAddExpense = (expense: Expense) => {
+    setDb(prev => ({ ...prev, expenses: [...prev.expenses, expense] }));
+  };
+
+  const handleUpdateExpense = (id: string, updates: Partial<Expense>) => {
+    setDb(prev => ({ ...prev, expenses: prev.expenses.map(e => e.id === id ? { ...e, ...updates } : e) }));
   };
 
   // Toggle paid status on the fly, persisted inside the database state itself
@@ -335,28 +443,45 @@ export default function App() {
         paymentOverrides: { ...prev.paymentOverrides, [key]: nextStatus }
       };
     });
+  };
 
-    // If modal is active, update active modal view representation
-    if (selectedInvoice && selectedInvoice.flatId === flatId) {
-      setSelectedInvoice(prev => {
-        if (!prev) return null;
-        return { ...prev, paid: !prev.paid };
-      });
-    }
+  // Records an actual amount received against a bill. A manual PAID/UNPAID override (set via
+  // handleTogglePaymentStatus) takes precedence in resolvePaymentInfo, so clear any override
+  // here - once real money is on record, the computed status should drive the bill again.
+  const handleRecordPayment = (flatId: string, amount: number, date: string, note?: string) => {
+    const key = getPaymentOverrideKey(flatId, selectedMonth, selectedYear);
+    const record: PaymentRecord = { id: `pay_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, amount, date, note };
+
+    setDb(prev => {
+      const { [key]: _removedOverride, ...restOverrides } = prev.paymentOverrides;
+      return {
+        ...prev,
+        paymentOverrides: restOverrides,
+        paymentRecords: { ...prev.paymentRecords, [key]: [...(prev.paymentRecords[key] || []), record] }
+      };
+    });
+  };
+
+  const handleToggleAgentPayoutStatus = (agentId: string) => {
+    const key = getAgentPayoutKey(agentId, selectedMonth, selectedYear);
+    setDb(prev => ({
+      ...prev,
+      agentPayouts: { ...prev.agentPayouts, [key]: prev.agentPayouts[key] === 'PAID' ? 'UNPAID' : 'PAID' }
+    }));
   };
 
   // Cascade Deletes representing Room Foreign Key constraints on cascade deletes!
-  const handleDeleteRecord = (category: 'area' | 'building' | 'wing' | 'flat' | 'paper' | 'agent', id: string) => {
+  const handleDeleteRecord = (category: 'area' | 'building' | 'wing' | 'flat' | 'paper' | 'agent' | 'expense', id: string) => {
     if (!window.confirm(`Are you sure you want to delete this ${category}? This operation represents Room's SQLite CASCADE delete constraint and will irreversibly delete all downstream relational child rows.`)) {
       return;
     }
 
     setDb(prev => {
-      let { areas, buildings, wings, flats, papers, subscriptions, deliveryLogs, agents } = prev;
+      let { areas, buildings, wings, flats, papers, subscriptions, deliveryLogs, agents, expenses } = prev;
 
       if (category === 'area') {
         areas = areas.filter(a => a.id !== id);
-        
+
         // Find buildings belonging to this area
         const deletedBlds = buildings.filter(b => b.areaId === id);
         const deletedBldIds = deletedBlds.map(b => b.id);
@@ -427,6 +552,10 @@ export default function App() {
         agents = agents.filter(a => a.id !== id);
       }
 
+      else if (category === 'expense') {
+        expenses = expenses.filter(e => e.id !== id);
+      }
+
       return {
         ...prev,
         areas,
@@ -436,7 +565,8 @@ export default function App() {
         papers,
         subscriptions,
         deliveryLogs,
-        agents
+        agents,
+        expenses
       };
     });
   };
@@ -455,20 +585,35 @@ export default function App() {
   };
 
   const handleViewInvoice = (summary: BillingSummary) => {
-    // Get correct payment state from overrides if exists
-    const key = getPaymentOverrideKey(summary.flatId, selectedMonth, selectedYear);
-    const override = db.paymentOverrides[key];
-    let isPaid = summary.paid;
-    if (override === 'PAID') isPaid = true;
-    if (override === 'UNPAID') isPaid = false;
+    setSelectedInvoice(summary);
+  };
 
-    setSelectedInvoice({ ...summary, paid: isPaid });
+  // Keeps the open invoice modal's figures (status/amountPaid/balanceDue) in sync whenever
+  // the underlying db changes - e.g. after toggling paid status or recording a payment while
+  // the modal is open, instead of the modal's own stale copy from when it was first opened.
+  useEffect(() => {
+    if (!selectedInvoice) return;
+    const flat = db.flats.find(f => f.id === selectedInvoice.flatId);
+    if (!flat) {
+      setSelectedInvoice(null);
+      return;
+    }
+    setSelectedInvoice(calculateBill(flat, selectedInvoice.month, selectedInvoice.year, db));
+    // Only react to db changes - selectedInvoice itself is only read, never a trigger, to
+    // avoid this effect re-running every time it writes selectedInvoice back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db]);
+
+  // Global search hands off a flat id; DeliveryList resolves and clears it once handled.
+  const handleNavigateToFlat = (flatId: string) => {
+    setActiveTab('drops');
+    setPendingFocusFlatId(flatId);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-200">
-      
-      {/* 1. Header: branding + single menu trigger for secondary/utility actions.
+
+      {/* 1. Header: branding + search + single menu trigger for secondary/utility actions.
           Primary navigation lives in the always-visible BottomNav instead. */}
       <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-40 px-4 sm:px-6 py-3 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
@@ -482,13 +627,22 @@ export default function App() {
             </div>
           </div>
 
-          <button
-            onClick={() => setIsNavOpen(true)}
-            className="text-slate-300 hover:text-white p-3 rounded-xl hover:bg-slate-800 transition-colors active:scale-[0.95] cursor-pointer"
-            title="Menu"
-          >
-            <MoreVertical size={22} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowGlobalSearch(true)}
+              className="text-slate-300 hover:text-white p-3 rounded-xl hover:bg-slate-800 transition-colors active:scale-[0.95] cursor-pointer"
+              title="Search"
+            >
+              <Search size={20} />
+            </button>
+            <button
+              onClick={() => setIsNavOpen(true)}
+              className="text-slate-300 hover:text-white p-3 rounded-xl hover:bg-slate-800 transition-colors active:scale-[0.95] cursor-pointer"
+              title="Menu"
+            >
+              <MoreVertical size={22} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -502,9 +656,11 @@ export default function App() {
         onResetDatabase={guard(handleResetDatabase)}
         onEraseAllData={guard(handleEraseAllData)}
         onShowFeedback={() => setShowFeedbackModal(true)}
+        onShowDriveBackup={() => setShowDriveModal(true)}
         license={license}
         daysRemaining={daysRemaining}
         onShowLicense={() => setShowLicenseModal(true)}
+        backupTick={backupTick}
       />
       <input
         ref={backupFileInputRef}
@@ -516,13 +672,13 @@ export default function App() {
 
       {/* 2. Main Content Frame (bottom padding clears the fixed BottomNav) */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-24">
-        
+
         {/* Statistics Bar (Hidden in Developer Tab) */}
         {activeTab !== 'help' && (
-          <DashboardStats 
-            state={db} 
-            month={selectedMonth} 
-            year={selectedYear} 
+          <DashboardStats
+            state={db}
+            month={selectedMonth}
+            year={selectedYear}
           />
         )}
 
@@ -533,7 +689,7 @@ export default function App() {
               <Calendar className="text-emerald-500" size={16} />
               <span className="text-xs font-bold text-slate-850 dark:text-slate-200 uppercase tracking-wider">Accounting Cycle Selector:</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrevMonth}
@@ -572,14 +728,19 @@ export default function App() {
         )}
 
         {/* Dynamic Tab Body Render */}
-        <div className="animate-fade-in">
+        {/* key={activeTab} remounts this div on every tab switch so animate-fade-in actually
+            replays each time, instead of only once on the app's very first render. */}
+        <div key={activeTab} className="animate-fade-in">
           {activeTab === 'drops' && (
             <DeliveryList
               state={db}
               onUpdateDeliveryStatus={guard(handleUpdateDeliveryStatus)}
               onBulkUpdateDeliveryStatus={guard(handleBulkUpdateDeliveryStatus)}
+              onUpdateSubscriptionStatus={guard(handleUpdateSubscriptionStatus)}
               selectedMonth={selectedMonth}
               selectedYear={selectedYear}
+              pendingFocusFlatId={pendingFocusFlatId}
+              onFocusHandled={() => setPendingFocusFlatId(null)}
             />
           )}
 
@@ -590,7 +751,13 @@ export default function App() {
               selectedYear={selectedYear}
               onViewInvoice={handleViewInvoice}
               onTogglePaymentStatus={guard(handleTogglePaymentStatus)}
+              onRecordPayment={guard(handleRecordPayment)}
+              onToggleAgentPayoutStatus={guard(handleToggleAgentPayoutStatus)}
             />
+          )}
+
+          {activeTab === 'reports' && (
+            <ReportsTab state={db} month={selectedMonth} year={selectedYear} />
           )}
 
           {activeTab === 'masters' && (
@@ -604,10 +771,14 @@ export default function App() {
               onUpdateWing={guard(handleUpdateWing)}
               onAddFlat={guard(handleAddFlat)}
               onUpdateFlat={guard(handleUpdateFlat)}
+              onImportCustomers={guard(handleImportCustomers)}
               onAddPaper={guard(handleAddPaper)}
-              onUpdatePaper={guard(handleUpdatePaper)}
+              onUpdatePaperName={guard(handleUpdatePaperName)}
+              onUpdatePaperRate={guard(handleUpdatePaperRate)}
               onAddAgent={guard(handleAddAgent)}
               onUpdateAgent={guard(handleUpdateAgent)}
+              onAddExpense={guard(handleAddExpense)}
+              onUpdateExpense={guard(handleUpdateExpense)}
               onDeleteRecord={guard(handleDeleteRecord)}
             />
           )}
@@ -627,6 +798,7 @@ export default function App() {
           agent={getAgentForFlat(selectedInvoice.flatId)}
           onClose={() => setSelectedInvoice(null)}
           onTogglePaymentStatus={guard(handleTogglePaymentStatus)}
+          onRecordPayment={guard(handleRecordPayment)}
         />
       )}
 
@@ -642,6 +814,26 @@ export default function App() {
           license={license}
           onUnlock={unlock}
           onClose={() => setShowLicenseModal(false)}
+        />
+      )}
+
+      {/* 6. Global Search - jump straight to a customer/paper/agent from anywhere */}
+      {showGlobalSearch && (
+        <GlobalSearchModal
+          state={db}
+          onClose={() => setShowGlobalSearch(false)}
+          onNavigateToFlat={handleNavigateToFlat}
+          onNavigateToTab={setActiveTab}
+        />
+      )}
+
+      {/* 7. Google Drive Backup */}
+      {showDriveModal && (
+        <DriveBackupModal
+          onClose={() => setShowDriveModal(false)}
+          getSerializedState={() => JSON.stringify(db)}
+          onRestore={handleRestoreFromDrive}
+          connectVersion={driveConnectVersion}
         />
       )}
     </div>

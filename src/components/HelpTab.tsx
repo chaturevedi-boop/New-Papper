@@ -1,5 +1,5 @@
 import React from 'react';
-import { HelpCircle, Sparkles, Wrench, ClipboardCheck, Info, CheckCircle2 } from 'lucide-react';
+import { HelpCircle, Sparkles, Wrench, ClipboardCheck, Info, CheckCircle2, Cloud } from 'lucide-react';
 
 interface SectionProps {
   icon: React.ElementType;
@@ -56,6 +56,22 @@ export const HelpTab: React.FC = () => {
       <Section icon={Sparkles} title="1. Features Implemented">
         <div className="space-y-4">
           <div className="space-y-2">
+            <SubHeading>Money, Reporting & Sync (latest pass)</SubHeading>
+            <ul className="space-y-2 pt-1">
+              <Item label="Rate history: ">changing a paper's price records a new rate effective from a chosen date instead of overwriting it, so past invoices stay accurate.</Item>
+              <Item label="Partial payments: ">record a specific amount received against a bill; status becomes PAID / PARTIAL / UNPAID automatically, with an overdue-aging badge.</Item>
+              <Item label="Agent commission & payouts: ">per-paper, percentage-of-collections, or fixed-monthly commission, tracked and marked paid per month under Billing → Agent Payouts.</Item>
+              <Item label="Expense tracking & Net Profit: ">log business expenses under Ledgers → Expenses; the dashboard now shows Net Profit (collections − expenses), not just gross billing.</Item>
+              <Item label="Subscription pause/resume: ">pause a single paper for a customer without deleting its history - it stops billing/delivering until resumed.</Item>
+              <Item label="Bulk CSV customer import: ">onboard many flats at once from a spreadsheet under Ledgers → Customer Flats → Import CSV, with a downloadable template.</Item>
+              <Item label="Global search: ">the header search icon jumps straight to any customer, paper, or agent from anywhere in the app.</Item>
+              <Item label="Reports tab: ">a dedicated 12-month revenue trend, paper-wise sales, agent performance, area/building profitability, and an on-demand annual customer summary, each exportable as CSV.</Item>
+              <Item label="Local auto-backup: ">on Android, a rolling backup is written to the device's Documents folder automatically - no setup needed.</Item>
+              <Item label="Google Drive backup: ">optional sync to a private, app-only folder in your own Google Drive - see the setup section below.</Item>
+              <Item label="Faster, no fake delays: ">Data Masters and Billing no longer simulate a ~½-1s "background save" - every edit applies instantly.</Item>
+            </ul>
+          </div>
+          <div className="space-y-2">
             <SubHeading>Application Features</SubHeading>
             <ul className="space-y-2 pt-1">
               <Item label="Edit / Update records: ">full edit capability for Areas, Buildings, Wings, Flats, Papers, and Agents.</Item>
@@ -95,8 +111,34 @@ export const HelpTab: React.FC = () => {
         </ul>
       </Section>
 
+      {/* Google Drive setup */}
+      <Section icon={Cloud} title="3. Google Drive Backup Setup (one-time)">
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          PaperTrack never holds its own Google credentials - you connect your own Google Cloud project so backups
+          go to a private, app-only folder in <em>your</em> Drive that PaperTrack can't see anything else in.
+        </p>
+        <ol className="space-y-2 pt-1 list-decimal list-inside">
+          <li className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            Go to <strong className="text-slate-800 dark:text-slate-200">Google Cloud Console</strong> → create a project (or reuse one) → enable the <strong className="text-slate-800 dark:text-slate-200">Google Drive API</strong>.
+          </li>
+          <li className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            Configure the <strong className="text-slate-800 dark:text-slate-200">OAuth consent screen</strong> (External is fine for personal use) and add the <span className="font-mono">drive.appdata</span> scope.
+          </li>
+          <li className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            Create an <strong className="text-slate-800 dark:text-slate-200">OAuth 2.0 Client ID</strong> of type "Web application". Add both of these as authorized redirect URIs: your web app's own URL, and <span className="font-mono">com.papertrack.app:/oauth2redirect</span> (used by the Android app).
+          </li>
+          <li className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            Open Side Menu → <strong className="text-slate-800 dark:text-slate-200">Google Drive Backup</strong>, paste the Client ID, tap Save, then Connect.
+          </li>
+        </ol>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+          No client secret is ever stored in the app (PKCE flow) - safe to ship in a public APK. Sign-in is
+          per-session (~1hr access token), so Backup Now / Restore are manual actions rather than silent sync.
+        </p>
+      </Section>
+
       {/* 4. Testing */}
-      <Section icon={ClipboardCheck} title="3. Testing & Verification">
+      <Section icon={ClipboardCheck} title="4. Testing & Verification">
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Two automated end-to-end passes were run against the web build using a headless-browser test harness, in
           addition to manual testing on a physical Android device.
@@ -140,14 +182,30 @@ export const HelpTab: React.FC = () => {
         <p className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">
           Zero console errors were recorded across both automated passes.
         </p>
+
+        <div className="rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+          <div className="bg-emerald-50 dark:bg-emerald-950/20 px-4 py-2.5 flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 size={14} /> Money/Reporting/Sync Pass — type-check, build, and logic smoke test
+          </div>
+          <div className="p-4 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Verified with strict TypeScript type-checking and a full production build across every changed file, plus
+            a 25-assertion logic smoke test against the billing/commission/import engine directly (rate-history
+            resolution, partial-payment status transitions, override precedence, paused-subscription billing
+            exclusion, all three commission types, expense totals, backup-shape normalization, and CSV import
+            dedupe/creation). No headless-browser tool was available in this environment for a full click-through UI
+            pass - exercise the new screens (Reports tab, Agent Payouts, Record Payment, CSV import, Drive backup) in
+            the running app before relying on them for real data.
+          </div>
+        </div>
       </Section>
 
       {/* 5. Notes */}
-      <Section icon={Info} title="4. Notes & Possible Follow-Ups">
+      <Section icon={Info} title="5. Notes & Possible Follow-Ups">
         <ul className="space-y-2">
           <Item label="">The production bundle is large mainly due to the PDF library; code-splitting would reduce initial load if ever needed.</Item>
           <Item label="">Some build-tooling dependencies (unrelated to runtime app code) report known vulnerabilities per npm audit.</Item>
           <Item label="">Feedback sent via WhatsApp/Email only reaches you if the sender actually taps Send — nothing is captured otherwise.</Item>
+          <Item label="">Google Drive sign-in uses a short-lived access token (~1hr) with no stored client secret, so Backup/Restore are manual taps rather than silent background sync.</Item>
         </ul>
       </Section>
     </div>

@@ -22,6 +22,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Google Drive backup OAuth redirect: Google's consent flow (opened via the
+                 system browser, since it refuses to run inside an embedded WebView) sends the
+                 user back here with the authorization code. Matches redirectUri() in
+                 src/utils/googleDrive.ts - keep both in sync if this ever changes. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.papertrack.app" android:host="oauth2redirect" />
+            </intent-filter>
+
         </activity>
 
         <provider

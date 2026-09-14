@@ -1,7 +1,9 @@
 import React from 'react';
 import type { ThemePreference } from '../hooks/useTheme';
 import type { ParsedLicense } from '../utils/licenseKey';
-import { Newspaper, X, Sun, Moon, Monitor, DownloadCloud, UploadCloud, RefreshCw, Eraser, MessageSquarePlus, ShieldCheck } from 'lucide-react';
+import { getLastBackupTime, formatBackupAge, isBackupStale } from '../utils/autoBackup';
+import { Capacitor } from '@capacitor/core';
+import { Newspaper, X, Sun, Moon, Monitor, DownloadCloud, UploadCloud, RefreshCw, Eraser, MessageSquarePlus, ShieldCheck, Cloud, AlertTriangle } from 'lucide-react';
 
 interface SideNavProps {
   isOpen: boolean;
@@ -13,9 +15,11 @@ interface SideNavProps {
   onResetDatabase: () => void;
   onEraseAllData: () => void;
   onShowFeedback: () => void;
+  onShowDriveBackup: () => void;
   license: ParsedLicense | null;
   daysRemaining: number;
   onShowLicense: () => void;
+  backupTick: number;
 }
 
 const DURATION_SHORT_LABEL: Record<ParsedLicense['duration'], string> = {
@@ -64,14 +68,22 @@ export const SideNav: React.FC<SideNavProps> = ({
   onResetDatabase,
   onEraseAllData,
   onShowFeedback,
+  onShowDriveBackup,
   license,
   daysRemaining,
-  onShowLicense
+  onShowLicense,
+  backupTick
 }) => {
   const run = (action: () => void) => () => {
     onClose();
     action();
   };
+
+  // Re-reads on every backupTick bump (fired after each auto-backup write) and whenever the
+  // drawer opens, since localStorage isn't itself reactive.
+  const lastBackup = getLastBackupTime();
+  const stale = isBackupStale();
+  void backupTick;
 
   return (
     <>
@@ -132,6 +144,18 @@ export const SideNav: React.FC<SideNavProps> = ({
             label="Restore Backup"
             detail="Load data from a JSON file"
             onClick={run(onImportBackupClick)}
+          />
+          {Capacitor.isNativePlatform() && (
+            <div className="mx-4 mt-1 mb-2 flex items-center gap-2 text-[10px] font-semibold text-slate-500">
+              {stale ? <AlertTriangle size={12} className="text-amber-400 shrink-0" /> : <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />}
+              <span>Auto-backup: {formatBackupAge(lastBackup)}</span>
+            </div>
+          )}
+          <UtilityRow
+            icon={Cloud}
+            label="Google Drive Backup"
+            detail="Sync a copy to your own Drive"
+            onClick={run(onShowDriveBackup)}
           />
           <div className="h-px bg-slate-800 my-2 mx-1" />
           <UtilityRow
